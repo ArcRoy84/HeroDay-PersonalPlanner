@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#1D9E75"/>
+      <stop offset="100%" stop-color="#0F6E56"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="32" height="32" rx="7" fill="url(#g)"/>
+  <!-- Subtle shield watermark -->
+  <path d="M16 4 L25 7 L25 18 Q25 26 16 29 Q7 26 7 18 L7 7 Z" fill="#E1F5EE" opacity="0.1"/>
+  <!-- HD monogram -->
+  <text x="16" y="17.5" text-anchor="middle" font-size="10" font-weight="600" fill="white" font-family="system-ui, -apple-system, sans-serif">HD</text>
+  <!-- Three progress dots -->
+  <circle cx="11" cy="24.5" r="2.4" fill="#97C459"/>
+  <circle cx="16" cy="24.5" r="2.4" fill="#EF9F27"/>
+  <circle cx="21" cy="24.5" r="2.4" fill="#5DCAA5"/>
+</svg>
