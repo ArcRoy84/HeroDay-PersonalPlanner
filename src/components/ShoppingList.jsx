@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useShoppingPrefs } from '../hooks/useShoppingPrefs';
 import { generateId, getToday, navigateDate } from '../utils/helpers.js';
 import { CATEGORIES as DEFAULT_CATEGORIES, CATEGORY_MAP, categorize } from '../data/shoppingCategories.js';
 import ShoppingStoreMode from './ShoppingStoreMode.jsx';
@@ -10,50 +11,6 @@ const CAT_COLORS = [
   '#8b5cf6','#06b6d4','#9ca3af','#f97316',
   '#84cc16','#14b8a6','#e879f9','#fb7185',
 ];
-
-function loadCategories() {
-  try {
-    const s = localStorage.getItem('mtp_shop_categories');
-    const cats = s ? JSON.parse(s) : DEFAULT_CATEGORIES;
-    // Existing users may have saved a category list from before "Recipes" existed — patch it in.
-    if (!cats.some(c => c.id === 'recipes')) {
-      return [...cats, { id: 'recipes', label: 'Recipes', emoji: '📖', color: '#7c66ff' }];
-    }
-    return cats;
-  } catch { return DEFAULT_CATEGORIES; }
-}
-
-function saveCategories(cats) {
-  try { localStorage.setItem('mtp_shop_categories', JSON.stringify(cats)); } catch {}
-}
-
-function loadPantry() {
-  try {
-    const s = localStorage.getItem('mtp_pantry');
-    return s ? JSON.parse(s) : [];
-  } catch { return []; }
-}
-
-function savePantry(items) {
-  try { localStorage.setItem('mtp_pantry', JSON.stringify(items)); } catch {}
-}
-
-const DEFAULT_UNITS = [
-  'lbs', 'oz', 'kg', 'g', 'can', 'bottle', 'pack', 'dozen',
-  'bunch', 'bag', 'box', 'jar', 'gallon', 'liter', 'cup',
-  'pint', 'quart', 'piece', 'slice', 'head', 'clove', 'stalk',
-];
-
-function loadUnits() {
-  try {
-    const s = localStorage.getItem('mtp_shop_units');
-    return s ? JSON.parse(s) : DEFAULT_UNITS;
-  } catch { return DEFAULT_UNITS; }
-}
-
-function saveUnits(u) {
-  try { localStorage.setItem('mtp_shop_units', JSON.stringify(u)); } catch {}
-}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const IconMic      = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="6" y="1" width="6" height="9" rx="3"/><path d="M3 10a6 6 0 0 0 12 0"/><line x1="9" y1="16" x2="9" y2="18"/></svg>;
@@ -145,10 +102,11 @@ function daysSince(iso) {
 }
 
 // ── Recipe photo helper ───────────────────────────────────────────────────────
-// Recipe photos are stored inline as compressed base64 data URLs alongside the
-// recipe JSON in localStorage (same persistence path as the rest of the app —
-// see App.jsx's mtp_shop_recipes). Downscaling here keeps each photo in the tens
-// of KB so a few dozen recipes with pictures still fit comfortably.
+// Recipe photos are stored inline as compressed base64 data URLs on the recipe
+// row in the `shoppingRecipes` table. IndexedDB has far more headroom than the
+// localStorage this used to live in, but downscaling still earns its keep: it
+// keeps each photo in the tens of KB, so reads stay fast and a future sync has
+// less to push. Storing them as Blobs instead would be the next improvement.
 function resizeImage(file, maxW = 640, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1631,28 +1589,14 @@ export default function ShoppingList({ lists, setLists, history, setHistory, rec
   const [showUnits,      setShowUnits]      = useState(false);
   const [copyMsg,        setCopyMsg]        = useState(false);
   const [voiceError,     setVoiceError]     = useState('');
-  const [categories, setCategories] = useState(loadCategories);
-  const [units,      setUnitsState] = useState(loadUnits);
-  const [pantryItems, setPantryItemsState] = useState(loadPantry);
+  // Store categories, the pantry tracker and the unit list are persisted in
+  // Dexie; the setters keep the shapes this component already calls them with.
+  const {
+    categories, setCategories: updateCategories,
+    pantryItems, setPantryItems,
+    units, setUnits: updateUnits,
+  } = useShoppingPrefs();
   const inputRef = useRef(null);
-
-  const setPantryItems = useCallback((updater) => {
-    setPantryItemsState(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      savePantry(next);
-      return next;
-    });
-  }, []);
-
-  const updateCategories = (cats) => {
-    setCategories(cats);
-    saveCategories(cats);
-  };
-
-  const updateUnits = (u) => {
-    setUnitsState(u);
-    saveUnits(u);
-  };
 
   const catMap = useMemo(
     () => Object.fromEntries(categories.map(c => [c.id, c])),

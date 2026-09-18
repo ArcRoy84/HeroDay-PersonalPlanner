@@ -193,7 +193,7 @@ export interface PantryItem extends Auditable {
 
 /* ── Budget ─────────────────────────────────────────────────────────────── */
 
-export type BudgetCategoryType = 'need' | 'want' | 'savings';
+export type BudgetCategoryType = 'need' | 'want' | 'saving';
 
 export interface BudgetCategory extends Auditable {
   id: string;

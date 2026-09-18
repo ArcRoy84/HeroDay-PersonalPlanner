@@ -8,7 +8,9 @@
 import { db } from './schema';
 import { migrateFromLocalStorage } from './migrate';
 import { newId, now } from './ids';
-import type { Category, Task } from './types';
+import { DEFAULT_BUDGET_CATEGORIES } from '../data/budgetCategories.js';
+import { CATEGORIES as SHOPPING_CATEGORIES } from '../data/shoppingCategories.js';
+import type { BudgetCategory, Category, Task } from './types';
 
 const DEFAULT_CATEGORIES: Omit<Category, 'updatedAt' | 'deletedAt'>[] = [
   { id: 'work', name: 'Work', color: '#7c66ff' },
@@ -64,6 +66,28 @@ async function seedIfEmpty(): Promise<void> {
       id: 'default', name: 'Grocery', budget: null,
       createdAt: timestamp, updatedAt: timestamp, deletedAt: null,
     });
+  }
+
+  // Budget categories used to be a read-time fallback inside BudgetView. Now
+  // they are seeded once and recorded, so clearing them stays cleared.
+  if (!await db.meta.get('budgetSeeded')) {
+    if (await db.budgetCategories.count() === 0) {
+      await db.budgetCategories.bulkPut(
+        DEFAULT_BUDGET_CATEGORIES.map(c => ({
+          ...c,
+          type: c.type as BudgetCategory['type'],
+          updatedAt: timestamp,
+          deletedAt: null,
+        })),
+      );
+    }
+    await db.meta.put({ key: 'budgetSeeded', value: timestamp });
+  }
+
+  if (await db.shoppingCategories.count() === 0) {
+    await db.shoppingCategories.bulkPut(
+      SHOPPING_CATEGORIES.map(c => ({ ...c, updatedAt: timestamp, deletedAt: null })),
+    );
   }
 }
 

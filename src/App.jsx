@@ -9,97 +9,72 @@ import StatsPanel from './components/StatsPanel.jsx';
 import LearningPlan from './components/LearningPlan.jsx';
 import ShoppingList from './components/ShoppingList.jsx';
 import FAB from './components/FAB.jsx';
-import {
-  generateId, getToday, DEFAULT_CATEGORIES,
-  navigateDate, getDayName
-} from './utils/helpers.js';
+import { getToday, navigateDate } from './utils/helpers.js';
+import { newId } from './db/ids';
+import { useDatabaseReady } from './hooks/useDatabaseReady';
+import { useTasks, useCategories } from './hooks/useTasks';
+import { useLearning } from './hooks/useLearning';
+import { useShopping } from './hooks/useShopping';
+import { useSetting } from './hooks/useSetting';
 
-// ─── localStorage helpers ────────────────────────────────────────────────────
-const load = (key, fallback) => {
-  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
-  catch { return fallback; }
-};
-const save = (key, val) => {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-};
+const NO_STREAK = { count: 0, lastDate: null };
 
-// ─── Initial seed data for first-time users ──────────────────────────────────
-const seedTasks = () => {
-  const today = getToday();
-  return [
-    {
-      id: generateId(), title: 'Morning review', priority: 'high',
-      categoryId: 'work', date: today, startTime: '09:00', duration: 30,
-      tags: ['focus'], reminder: true, completed: false,
-      description: 'Review emails and plan the day', createdAt: new Date().toISOString(),
-    },
-    {
-      id: generateId(), title: 'Team standup', priority: 'medium',
-      categoryId: 'work', date: today, startTime: '10:00', duration: 15,
-      tags: ['meeting'], reminder: false, completed: false,
-      description: '', createdAt: new Date().toISOString(),
-    },
-    {
-      id: generateId(), title: 'Lunch walk', priority: 'low',
-      categoryId: 'health', date: today, startTime: '13:00', duration: 30,
-      tags: [], reminder: false, completed: false,
-      description: '', createdAt: new Date().toISOString(),
-    },
-    {
-      id: generateId(), title: 'Read 30 pages', priority: 'medium',
-      categoryId: 'learning', date: today, startTime: '21:00', duration: 45,
-      tags: ['books'], reminder: true, completed: false,
-      description: '', createdAt: new Date().toISOString(),
-    },
-  ];
-};
+/** Shown while IndexedDB opens and the localStorage migration runs. */
+function BootScreen({ error }) {
+  if (error) {
+    return (
+      <div className="app app-boot">
+        <div className="boot-message">
+          <h1>Storage unavailable</h1>
+          <p>
+            HeroDay could not open its local database. This usually means the
+            browser is in private mode or has storage disabled.
+          </p>
+          <pre className="boot-error">{error.message}</pre>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="app app-boot">
+      <div className="boot-message"><p>Loading your day…</p></div>
+    </div>
+  );
+}
 
 export default function App() {
-  // ── State ──────────────────────────────────────────────────────────────────
-  const [tasks,        setTasks]        = useState(() => load('mtp_tasks', null) ?? seedTasks());
-  const [categories,   setCategories]   = useState(() => load('mtp_categories', DEFAULT_CATEGORIES));
-  const [theme,        setTheme]        = useState(() => load('mtp_theme', 'dark'));
-  const [view,         setView]         = useState(() => load('mtp_view', 'checklist'));
-  const [currentDate,  setCurrentDate]  = useState(getToday());
-  const [streak,          setStreak]          = useState(() => load('mtp_streak', { count: 0, lastDate: null }));
-  const [weeklyData,      setWeeklyData]      = useState(() => load('mtp_weekly', {}));
-  const [learningCourses, setLearningCourses] = useState(() => load('mtp_learning_courses', []));
-  const [learningGoals,   setLearningGoals]   = useState(() => load('mtp_learning_goals', []));
-  const [learningStreak,  setLearningStreak]  = useState(() => load('mtp_learning_streak', { count: 0, lastDate: null }));
-  const [weatherLocation, setWeatherLocation] = useState(() => load('mtp_weather_loc', null));
-  const [weatherUnit,     setWeatherUnit]     = useState(() => load('mtp_weather_unit', 'fahrenheit'));
+  const { status, error } = useDatabaseReady();
+  if (status !== 'ready') return <BootScreen error={error} />;
+  // The app proper is a separate component so its hooks only ever mount
+  // against an open, migrated database and never defend against a half-ready
+  // one. Returning early here would break the rules of hooks if they shared
+  // a component.
+  return <HeroDay />;
+}
 
-  // Shopping module state
-  const [shoppingLists,   setShoppingLists]   = useState(() => load('mtp_shop_lists', [{ id: 'default', name: 'Grocery', items: [], budget: null, createdAt: new Date().toISOString() }]));
-  const [shoppingHistory, setShoppingHistory] = useState(() => load('mtp_shop_history', []));
-  const [shoppingRecipes, setShoppingRecipes] = useState(() => load('mtp_shop_recipes', []));
+function HeroDay() {
+  const [currentDate, setCurrentDate] = useState(getToday());
 
-  // Settings modal state
+  // ── Persisted state ────────────────────────────────────────────────────────
+  const { tasks, weeklyData, addTask, updateTask, deleteTask, toggleTask } = useTasks(currentDate);
+  const { categories, addCategory: addCategoryRow, deleteCategory } = useCategories();
+  const learning = useLearning(getToday());
+  const shopping = useShopping();
+
+  const [theme, setTheme] = useSetting('theme', 'dark');
+  const [view, setView] = useSetting('view', 'checklist');
+  const [streak, setStreak] = useSetting('streak', NO_STREAK);
+  const [weatherLocation, setWeatherLocation] = useSetting('weatherLocation', null);
+  const [weatherUnit, setWeatherUnit] = useSetting('weatherUnit', 'fahrenheit');
+
+  // ── Modal state ────────────────────────────────────────────────────────────
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // Task modal state
-  const [isModalOpen,      setIsModalOpen]      = useState(false);
-  const [editingTask,      setEditingTask]      = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
   const [defaultModalTime, setDefaultModalTime] = useState('');
 
   // Notification tracking ref (avoid repeating alerts)
   const notifiedRef = useRef(new Set());
-
-  // ── Persist to localStorage ────────────────────────────────────────────────
-  useEffect(() => save('mtp_tasks',         tasks),              [tasks]);
-  useEffect(() => save('mtp_categories',    categories),         [categories]);
-  useEffect(() => save('mtp_theme',         theme),              [theme]);
-  useEffect(() => save('mtp_view',          view),               [view]);
-  useEffect(() => save('mtp_streak',        streak),             [streak]);
-  useEffect(() => save('mtp_weekly',        weeklyData),         [weeklyData]);
-  useEffect(() => save('mtp_learning_courses', learningCourses), [learningCourses]);
-  useEffect(() => save('mtp_learning_goals',   learningGoals),   [learningGoals]);
-  useEffect(() => save('mtp_learning_streak',  learningStreak),  [learningStreak]);
-  useEffect(() => save('mtp_weather_loc',  weatherLocation),     [weatherLocation]);
-  useEffect(() => save('mtp_weather_unit', weatherUnit),         [weatherUnit]);
-  useEffect(() => save('mtp_shop_lists',   shoppingLists),       [shoppingLists]);
-  useEffect(() => save('mtp_shop_history', shoppingHistory),     [shoppingHistory]);
-  useEffect(() => save('mtp_shop_recipes', shoppingRecipes),     [shoppingRecipes]);
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -191,145 +166,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [isModalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Weekly data sync ───────────────────────────────────────────────────────
-  const syncWeeklyData = useCallback((updatedTasks) => {
-    const newWeekly = {};
-    updatedTasks.forEach(t => {
-      if (!t.date) return;
-      if (!newWeekly[t.date]) newWeekly[t.date] = { total: 0, completed: 0 };
-      newWeekly[t.date].total++;
-      if (t.completed) newWeekly[t.date].completed++;
-    });
-    setWeeklyData(newWeekly);
-  }, []);
-
-  // ── Task CRUD ──────────────────────────────────────────────────────────────
-  const addTask = useCallback((data) => {
-    const task = { id: generateId(), ...data, completed: false, createdAt: new Date().toISOString() };
-    setTasks(prev => {
-      const next = [...prev, task];
-      syncWeeklyData(next);
-      return next;
-    });
-  }, [syncWeeklyData]);
-
-  const updateTask = useCallback((id, updates) => {
-    setTasks(prev => {
-      const next = prev.map(t => t.id === id ? { ...t, ...updates } : t);
-      syncWeeklyData(next);
-      return next;
-    });
-  }, [syncWeeklyData]);
-
-  const deleteTask = useCallback((id) => {
-    setTasks(prev => {
-      const next = prev.filter(t => t.id !== id);
-      syncWeeklyData(next);
-      return next;
-    });
-  }, [syncWeeklyData]);
-
-  const toggleTask = useCallback((id) => {
-    setTasks(prev => {
-      const task = prev.find(t => t.id === id);
-      if (!task) return prev;
-
-      // Recurring tasks: toggle per-day completion via completedDates map
-      if (task.recurrence?.days?.length) {
-        const completedDates = { ...(task.completedDates || {}) };
-        if (completedDates[currentDate]) delete completedDates[currentDate];
-        else completedDates[currentDate] = true;
-        return prev.map(t => t.id === id ? { ...t, completedDates } : t);
-      }
-
-      // Regular tasks: toggle completed
-      const next = prev.map(t =>
-        t.id === id
-          ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : null }
-          : t
-      );
-      syncWeeklyData(next);
-      return next;
-    });
-  }, [currentDate, syncWeeklyData]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Learning plan: streak ────────────────────────────────────────────────────
-  const bumpLearningStreak = useCallback(() => {
-    setLearningStreak(prev => {
-      const today = getToday();
-      if (prev.lastDate === today) return prev;
-      const yest = new Date(today + 'T00:00:00');
-      yest.setDate(yest.getDate() - 1);
-      const yesterday = yest.toISOString().split('T')[0];
-      const newCount = prev.lastDate === yesterday ? prev.count + 1 : 1;
-      return { count: newCount, lastDate: today };
-    });
-  }, []);
-
-  // ── Learning plan: courses ───────────────────────────────────────────────────
-  const addCourse = useCallback((data) => {
-    setLearningCourses(prev => [...prev, {
-      id: generateId(),
-      title: data.title,
-      categoryId: data.categoryId,
-      provider: data.provider || '',
-      mode: data.mode,
-      progress: 0,
-      lessons: [],
-      targetDate: data.targetDate || null,
-      weeklyHours: data.weeklyHours || null,
-      goalId: data.goalId || null,
-      notes: data.notes || '',
-      createdAt: new Date().toISOString(),
-    }]);
-  }, []);
-
-  const updateCourse = useCallback((id, updates) => {
-    setLearningCourses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  }, []);
-
-  const deleteCourse = useCallback((id) => {
-    setLearningCourses(prev => prev.filter(c => c.id !== id));
-  }, []);
-
-  const toggleLesson = useCallback((courseId, lessonId) => {
-    let justCompleted = false;
-    setLearningCourses(prev => prev.map(c => {
-      if (c.id !== courseId) return c;
-      return {
-        ...c,
-        lessons: c.lessons.map(l => {
-          if (l.id !== lessonId) return l;
-          justCompleted = !l.done;
-          return { ...l, done: !l.done, completedAt: !l.done ? new Date().toISOString() : null };
-        }),
-      };
-    }));
-    if (justCompleted) bumpLearningStreak();
-  }, [bumpLearningStreak]);
-
-  const addLesson = useCallback((courseId, { text, notes }) => {
-    setLearningCourses(prev => prev.map(c => c.id === courseId
-      ? { ...c, lessons: [...c.lessons, { id: generateId(), text, notes: notes || '', done: false, completedAt: null }] }
-      : c));
-  }, []);
-
-  const deleteLesson = useCallback((courseId, lessonId) => {
-    setLearningCourses(prev => prev.map(c => c.id === courseId
-      ? { ...c, lessons: c.lessons.filter(l => l.id !== lessonId) }
-      : c));
-  }, []);
-
-  const setCourseProgress = useCallback((courseId, pct) => {
-    let improved = false;
-    setLearningCourses(prev => prev.map(c => {
-      if (c.id !== courseId) return c;
-      if (pct > (c.progress || 0)) improved = true;
-      return { ...c, progress: pct };
-    }));
-    if (improved) bumpLearningStreak();
-  }, [bumpLearningStreak]);
-
+  // ── Learning: schedule a study session as a task ───────────────────────────
   const addCourseSessionToPlanner = useCallback(({ course, date, startTime, duration }) => {
     addTask({
       title: `Study: ${course.title}`,
@@ -344,34 +181,10 @@ export default function App() {
     });
   }, [addTask]);
 
-  // ── Learning plan: goals ─────────────────────────────────────────────────────
-  const addGoal = useCallback((data) => {
-    setLearningGoals(prev => [...prev, {
-      id: generateId(),
-      title: data.title,
-      motivation: data.motivation || '',
-      targetDate: data.targetDate || null,
-      createdAt: new Date().toISOString(),
-    }]);
-  }, []);
-
-  const updateGoal = useCallback((id, updates) => {
-    setLearningGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
-  }, []);
-
-  const deleteGoal = useCallback((id) => {
-    setLearningGoals(prev => prev.filter(g => g.id !== id));
-    setLearningCourses(prev => prev.map(c => c.goalId === id ? { ...c, goalId: null } : c));
-  }, []);
-
   // ── Category CRUD ──────────────────────────────────────────────────────────
   const addCategory = useCallback((data) => {
-    setCategories(prev => [...prev, { id: generateId(), ...data }]);
-  }, []);
-
-  const deleteCategory = useCallback((id) => {
-    setCategories(prev => prev.filter(c => c.id !== id));
-  }, []);
+    addCategoryRow({ id: newId(), ...data });
+  }, [addCategoryRow]);
 
   // ── Modal helpers ──────────────────────────────────────────────────────────
   const openModal = useCallback((task = null, time = '') => {
@@ -462,31 +275,31 @@ export default function App() {
 
           {view === 'learn' && (
             <LearningPlan
-              courses={learningCourses}
-              goals={learningGoals}
-              streak={learningStreak}
-              onAddCourse={addCourse}
-              onUpdateCourse={updateCourse}
-              onDeleteCourse={deleteCourse}
-              onAddGoal={addGoal}
-              onUpdateGoal={updateGoal}
-              onDeleteGoal={deleteGoal}
-              onToggleLesson={toggleLesson}
-              onAddLesson={addLesson}
-              onDeleteLesson={deleteLesson}
-              onSetProgress={setCourseProgress}
+              courses={learning.courses}
+              goals={learning.goals}
+              streak={learning.streak}
+              onAddCourse={learning.addCourse}
+              onUpdateCourse={learning.updateCourse}
+              onDeleteCourse={learning.deleteCourse}
+              onAddGoal={learning.addGoal}
+              onUpdateGoal={learning.updateGoal}
+              onDeleteGoal={learning.deleteGoal}
+              onToggleLesson={learning.toggleLesson}
+              onAddLesson={learning.addLesson}
+              onDeleteLesson={learning.deleteLesson}
+              onSetProgress={learning.setCourseProgress}
               onAddToPlanner={addCourseSessionToPlanner}
             />
           )}
 
           {view === 'shop' && (
             <ShoppingList
-              lists={shoppingLists}
-              setLists={setShoppingLists}
-              history={shoppingHistory}
-              setHistory={setShoppingHistory}
-              recipes={shoppingRecipes}
-              setRecipes={setShoppingRecipes}
+              lists={shopping.lists}
+              setLists={shopping.setLists}
+              history={shopping.history}
+              setHistory={shopping.setHistory}
+              recipes={shopping.recipes}
+              setRecipes={shopping.setRecipes}
               onAddToPlanner={(data) => addTask(data)}
             />
           )}

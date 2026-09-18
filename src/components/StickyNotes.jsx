@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { formatDate } from '../utils/helpers.js';
+import { useNotes } from '../hooks/useNotes';
 
 const COLORS = [
   { id: 'yellow', bg: '#fef08a', border: '#fde047', text: '#713f12' },
@@ -48,30 +49,9 @@ function Note({ note, onUpdate, onDelete }) {
 }
 
 export default function StickyNotes({ date }) {
-  const [notes, setNotes] = useState([]);
-  const storageKey = `mtp_notes_${date}`;
-
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      setNotes(saved);
-    } catch { setNotes([]); }
-  }, [date]);
-
-  const persist = (updated) => {
-    setNotes(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-  };
-
-  const addNote = () => persist([
-    ...notes,
-    { id: Date.now().toString(), text: '', color: 'yellow' },
-  ]);
-
-  const updateNote = (id, changes) =>
-    persist(notes.map(n => n.id === id ? { ...n, ...changes } : n));
-
-  const deleteNote = (id) => persist(notes.filter(n => n.id !== id));
+  // Notes live in the `notes` table indexed by date, so every view showing
+  // this day stays in sync without prop drilling.
+  const { notes, addNote, updateNote, deleteNote } = useNotes(date);
 
   return (
     <div className="sticky-panel">

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { useBudget } from '../hooks/useBudget';
 import { generateId, getToday } from '../utils/helpers.js';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -12,28 +13,6 @@ const IconIncome   = () => <svg width="14" height="14" viewBox="0 0 14 14" fill=
 const IconBill     = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="1.5" width="10" height="11" rx="1.2"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3"/></svg>;
 const IconCart     = () => <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1h2.5l2.5 9h8.5l1.5-5.5H5"/><circle cx="8" cy="15.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="14" cy="15.5" r="1.5" fill="currentColor" stroke="none"/></svg>;
 
-// ── Persistence (local to the Budget module — see mtp_budget_* keys) ──────────
-function load(key, fallback) {
-  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; }
-  catch { return fallback; }
-}
-function save(key, val) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
-
-const DEFAULT_CATEGORIES = [
-  { id: 'housing',       name: 'Housing & Rent', emoji: '🏠', type: 'need',   allocated: 0 },
-  { id: 'utilities',     name: 'Utilities',      emoji: '💡', type: 'need',   allocated: 0 },
-  { id: 'groceries',     name: 'Groceries',      emoji: '🛒', type: 'need',   allocated: 0 },
-  { id: 'transport',     name: 'Transportation', emoji: '🚗', type: 'need',   allocated: 0 },
-  { id: 'insurance',     name: 'Insurance',      emoji: '🛡️', type: 'need',   allocated: 0 },
-  { id: 'dining',        name: 'Dining Out',     emoji: '🍽️', type: 'want',   allocated: 0 },
-  { id: 'entertainment', name: 'Entertainment',  emoji: '🎬', type: 'want',   allocated: 0 },
-  { id: 'subscriptions', name: 'Subscriptions',  emoji: '📺', type: 'want',   allocated: 0 },
-  { id: 'shopping',      name: 'Shopping',       emoji: '🛍️', type: 'want',   allocated: 0 },
-  { id: 'savings',       name: 'Savings Goals',  emoji: '💰', type: 'saving', allocated: 0 },
-  { id: 'other',         name: 'Other',          emoji: '📦', type: 'want',   allocated: 0 },
-];
 
 const BILL_TEMPLATES = [
   { name: 'Rent / Mortgage',  emoji: '🏠', categoryId: 'housing' },
@@ -490,11 +469,12 @@ function BillModal({ bill, categories, onSave, onClose }) {
 
 // ── Main BudgetView ────────────────────────────────────────────────────────────
 export default function BudgetView({ lists }) {
-  const [categories, setCategoriesState] = useState(() => load('mtp_budget_categories', DEFAULT_CATEGORIES));
-  const [income,      setIncomeState]     = useState(() => load('mtp_budget_income', []));
-  const [bills,        setBillsState]     = useState(() => load('mtp_budget_bills', []));
-  const [expenses,     setExpensesState]  = useState(() => load('mtp_budget_expenses', []));
-  const [settings,     setSettingsState]  = useState(() => load('mtp_budget_settings', { methodology: 'zero-based', cashOnHand: 0 }));
+  // Persisted budget state now lives in Dexie; the setters keep the same
+  // `setX(prev => next)` shape this component was already written against.
+  const {
+    categories, income, bills, expenses, settings,
+    setCategories, setIncome, setBills, setExpenses, setSettings,
+  } = useBudget();
 
   const [showLogExpense,  setShowLogExpense]  = useState(false);
   const [showCategories,  setShowCategories]  = useState(false);
@@ -503,27 +483,6 @@ export default function BudgetView({ lists }) {
   const [editingCash,     setEditingCash]     = useState(false);
   const [cashDraft,       setCashDraft]       = useState(settings.cashOnHand);
   const [deleteTarget,    setDeleteTarget]    = useState(null); // { kind, id, label }
-
-  const setCategories = useCallback(updater => setCategoriesState(prev => {
-    const next = typeof updater === 'function' ? updater(prev) : updater;
-    save('mtp_budget_categories', next); return next;
-  }), []);
-  const setIncome = useCallback(updater => setIncomeState(prev => {
-    const next = typeof updater === 'function' ? updater(prev) : updater;
-    save('mtp_budget_income', next); return next;
-  }), []);
-  const setBills = useCallback(updater => setBillsState(prev => {
-    const next = typeof updater === 'function' ? updater(prev) : updater;
-    save('mtp_budget_bills', next); return next;
-  }), []);
-  const setExpenses = useCallback(updater => setExpensesState(prev => {
-    const next = typeof updater === 'function' ? updater(prev) : updater;
-    save('mtp_budget_expenses', next); return next;
-  }), []);
-  const setSettings = useCallback(updater => setSettingsState(prev => {
-    const next = typeof updater === 'function' ? updater(prev) : updater;
-    save('mtp_budget_settings', next); return next;
-  }), []);
 
   // ── Derived numbers ───────────────────────────────────────────────────────
   const monthKey = getToday().slice(0, 7);
