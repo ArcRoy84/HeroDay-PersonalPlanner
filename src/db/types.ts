@@ -241,11 +241,12 @@ export interface Streak {
 
 export interface WeatherLocation {
   name: string;
-  latitude: number;
-  longitude: number;
+  lat: number;
+  lon: number;
 }
 
-export type ThemeName = 'dark' | 'light';
+/** Theme ids offered by the settings modal. */
+export type ThemeName = 'dark' | 'light' | 'heroday' | 'heroday-light';
 export type TemperatureUnit = 'fahrenheit' | 'celsius';
 export type ViewName = string;
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DataSection from './DataSection.jsx';
 
 const THEMES = [
   { id: 'dark',         label: 'Default Dark',  sub: 'Purple · Dark',  bg: '#08080f', surface: '#111119', accent: '#7c66ff' },
@@ -222,6 +223,11 @@ export default function SettingsModal({ theme, setTheme, location, setLocation, 
             unit={unit}
             setUnit={setUnit}
           />
+
+          <div className="settings-divider" />
+
+          {/* Backup, restore and legacy storage cleanup */}
+          <DataSection />
         </div>
       </div>
     </div>
