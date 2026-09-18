@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { PRIORITY_CONFIG, timeToMinutes, getToday } from '../utils/helpers.js';
+import { PRIORITY_CONFIG } from '../utils/helpers.js';
 import WeatherWidget from './WeatherWidget.jsx';
 
 // Circular progress ring
@@ -53,7 +53,7 @@ export default function Dashboard({ tasks, allTasks, categories, streak, current
     return { total, completed, rate, byPriority, remainingMin, topCat, catCount, topCatMax };
   }, [tasks, categories]);
 
-  const { total, completed, rate, byPriority, remainingMin, topCat, catCount, topCatMax } = stats;
+  const { total, completed, rate, byPriority, remainingMin, catCount, topCatMax } = stats;
 
   const remainHours = Math.floor(remainingMin / 60);
   const remainMins  = remainingMin % 60;

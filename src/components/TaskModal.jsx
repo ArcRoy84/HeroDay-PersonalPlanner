@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  PRIORITY_CONFIG, DURATION_OPTIONS, getToday, generateId
+  PRIORITY_CONFIG, DURATION_OPTIONS, getToday
 } from '../utils/helpers.js';
 
 const IconX = () => (

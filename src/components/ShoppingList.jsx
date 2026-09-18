@@ -5,202 +5,18 @@ import { newId } from '../db/ids';
 import { CATEGORY_MAP, categorize } from '../data/shoppingCategories.js';
 import ShoppingStoreMode from './ShoppingStoreMode.jsx';
 import BudgetView from './BudgetView.jsx';
-
-const CAT_COLORS = [
-  '#97C459','#5DCAA5','#E24B4A','#EF9F27',
-  '#818cf8','#22d3ee','#f59e0b','#ec4899',
-  '#8b5cf6','#06b6d4','#9ca3af','#f97316',
-  '#84cc16','#14b8a6','#e879f9','#fb7185',
-];
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-const IconMic      = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="6" y="1" width="6" height="9" rx="3"/><path d="M3 10a6 6 0 0 0 12 0"/><line x1="9" y1="16" x2="9" y2="18"/></svg>;
-const IconPlus     = () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>;
-const IconMinus    = () => <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="1" y1="5" x2="9" y2="5"/></svg>;
-const IconX        = () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>;
-const IconCheck    = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="2 7 6 11 12 3"/></svg>;
-const IconPencil   = () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M9 1.5L11.5 4l-7 7H2V8.5l7-7z"/></svg>;
-const IconTrash    = () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><line x1="1.5" y1="3.5" x2="11.5" y2="3.5"/><path d="M4.5 3.5V2.5h4v1"/><path d="M2.5 3.5l.7 7.5h6.6l.7-7.5"/></svg>;
-const IconCart     = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1h2.5l2.5 9h8.5l1.5-5.5H5"/><circle cx="8" cy="15.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="14" cy="15.5" r="1.5" fill="currentColor" stroke="none"/></svg>;
-const IconLocation = () => <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="6" cy="5" r="2"/><path d="M6 1a4 4 0 0 1 4 4c0 3-4 7-4 7S2 8 2 5a4 4 0 0 1 4-4z"/></svg>;
-const IconChevron  = ({ up }) => <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points={up ? '1.5 7 5 3 8.5 7' : '1.5 3 5 7 8.5 3'}/></svg>;
-const IconShare    = () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="2" r="1.5"/><circle cx="10" cy="11" r="1.5"/><circle cx="2.5" cy="6.5" r="1.5"/><line x1="4" y1="5.8" x2="8.6" y2="2.9"/><line x1="4" y1="7.2" x2="8.6" y2="10.1"/></svg>;
-const IconLink     = () => <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 7a3 3 0 0 0 4.5.4l1.5-1.5a3 3 0 0 0-4.2-4.2L5.6 2.9"/><path d="M8 6a3 3 0 0 0-4.5-.4L2 7.1a3 3 0 0 0 4.2 4.2l1.1-1.1"/></svg>;
-const IconSparkle  = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M7 1l1.2 4 4 1.2-4 1.2L7 11.5l-1.2-4L1.8 6.2l4-1.2z"/></svg>;
-const IconCalendar = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="1" y="2.5" width="12" height="10.5" rx="1.5"/><path d="M1 6h12"/><line x1="4.5" y1="1" x2="4.5" y2="4"/><line x1="9.5" y1="1" x2="9.5" y2="4"/></svg>;
-const IconNavigation = () => <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4.5h10M8 1.5l3 3-3 3"/><path d="M14 10.5H4M7 7.5l-3 3 3 3"/></svg>;
-const IconBarcode  = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 3v12M5 3v12M7.5 3v12M10 3v12M11.5 3v12M14 3v12M16 3v12"/></svg>;
-const IconBarcodeSm = () => <svg width="12" height="12" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 3v12M5 3v12M7.5 3v12M10 3v12M11.5 3v12M14 3v12M16 3v12"/></svg>;
-// Nav panel icons
-const IconNavCart  = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M1 1h2.5l2.5 9h8.5l1.5-5.5H5"/><circle cx="8" cy="15.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="14" cy="15.5" r="1.5" fill="currentColor" stroke="none"/></svg>;
-const IconNavBook  = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3.5h5a2 2 0 0 1 2 2v10a2 2 0 0 0-2-2H3V3.5z"/><path d="M15 3.5h-5a2 2 0 0 0-2 2v10a2 2 0 0 1 2-2h5V3.5z"/></svg>;
-const IconNavWallet= () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="1" y="4" width="16" height="12" rx="2"/><path d="M1 8.5h16"/><circle cx="13.5" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M5 4V3a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1"/></svg>;
-const IconNavBox   = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6.5l6-4 6 4v8l-6 4-6-4v-8z"/><line x1="9" y1="2.5" x2="9" y2="18"/><path d="M3 6.5l6 4 6-4"/></svg>;
-const IconNavStore = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2 8h14"/><path d="M3 3h12l2 5H1L3 3z"/><path d="M6 8v9"/><path d="M12 8v9"/><path d="M1 17h16"/></svg>;
-// Recipe mode icons
-const IconClock    = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="7" r="6"/><path d="M7 3.5V7l2.5 1.5"/></svg>;
-const IconServings = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="4" r="2"/><path d="M1 13c0-2.5 1.8-4 4-4s4 1.5 4 4"/><circle cx="10.4" cy="5" r="1.5"/><path d="M8.6 9.2c1.9.3 3.2 1.7 3.2 3.8"/></svg>;
-const IconCamera   = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2 6.5A1.5 1.5 0 0 1 3.5 5h2l1-1.5h7L14.5 5h2A1.5 1.5 0 0 1 18 6.5v8A1.5 1.5 0 0 1 16.5 16h-13A1.5 1.5 0 0 1 2 14.5v-8z"/><circle cx="10" cy="10.5" r="3.2"/></svg>;
-const IconBook     = () => <svg width="26" height="26" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3.5h5a2 2 0 0 1 2 2v10a2 2 0 0 0-2-2H3V3.5z"/><path d="M15 3.5h-5a2 2 0 0 0-2 2v10a2 2 0 0 1 2-2h5V3.5z"/></svg>;
-
-// ── Nav sections ──────────────────────────────────────────────────────────────
-const NAV = [
-  { id: 'lists',   label: 'My List',          Icon: IconNavCart   },
-  { id: 'recipes', label: 'Recipes',          Icon: IconNavBook   },
-  { id: 'budget',  label: 'Monthly Budget',   Icon: IconNavWallet },
-  { id: 'items',   label: 'All Items',        Icon: IconNavBox    },
-  { id: 'stores',  label: 'Stores',           Icon: IconNavStore  },
-];
-
-// ── Units ─────────────────────────────────────────────────────────────────────
-const UNITS = [
-  'lbs','lb','oz','kg','g','cans','can','bottles','bottle','packs','pack',
-  'dozen','bunch','bunches','bags','bag','boxes','box','jars','jar',
-  'gallons','gallon','liters','liter','cups','cup','pints','pint',
-  'quarts','quart','pieces','piece','heads','head','cloves','clove',
-  'stalks','stalk','slices','slice','bars','bar',
-];
-const UNIT_OPTIONS = ['', 'lbs', 'oz', 'kg', 'g', 'can', 'bottle', 'pack', 'dozen',
-  'bunch', 'bag', 'box', 'jar', 'gallon', 'liter', 'cup', 'pint', 'quart', 'piece', 'slice'];
-
-// ── Parsing helpers ───────────────────────────────────────────────────────────
-const VOICE_STRIP = ['add ','put ','buy ','get ','i need ','please add ','i want ','need ','pick up '];
-const LIST_SUFFIX = [' to my shopping list',' to the list',' to my list',' on my list'];
-
-function cleanText(text) {
-  let t = text.toLowerCase().trim();
-  for (const w of VOICE_STRIP) { if (t.startsWith(w)) { t = t.slice(w.length); break; } }
-  for (const s of LIST_SUFFIX)  { if (t.endsWith(s))   { t = t.slice(0, -s.length).trim(); break; } }
-  return t;
-}
-
-function parseOne(raw) {
-  const t = cleanText(raw).trim();
-  if (!t) return null;
-  if (/^a dozen /i.test(t)) return { qty: 12, unit: 'dozen', name: t.replace(/^a dozen /i, '') };
-  const pattern = new RegExp(`^(\\d+(?:\\.\\d+)?)\\s+(?:(${UNITS.join('|')})s?\\s+(?:of\\s+)?)?(.+)$`, 'i');
-  const m = t.match(pattern);
-  if (m) return { qty: parseFloat(m[1]), unit: (m[2] || '').toLowerCase().replace(/s$/, ''), name: m[3].trim() };
-  return { qty: 1, unit: '', name: t };
-}
-
-function parseItems(raw) {
-  return raw.split(/\s+and\s+|,\s*/i).map(parseOne).filter(Boolean);
-}
-
-function getSuggestions(history, items) {
-  const names = new Set(items.map(i => i.name.toLowerCase()));
-  const now = Date.now();
-  return history
-    .filter(h => !names.has(h.name.toLowerCase()))
-    .map(h => ({ ...h, score: h.count * 10 - (now - new Date(h.lastBought)) / 86_400_000 }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
-}
-
-function daysSince(iso) {
-  return Math.round((Date.now() - new Date(iso)) / 86_400_000);
-}
-
-// ── Recipe photo helper ───────────────────────────────────────────────────────
-// Recipe photos are stored inline as compressed base64 data URLs on the recipe
-// row in the `shoppingRecipes` table. IndexedDB has far more headroom than the
-// localStorage this used to live in, but downscaling still earns its keep: it
-// keeps each photo in the tens of KB, so reads stay fast and a future sync has
-// less to push. Storing them as Blobs instead would be the next improvement.
-function resizeImage(file, maxW = 640, quality = 0.82) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const scale = Math.min(1, maxW / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = () => reject(new Error('Could not read image'));
-      img.src = reader.result;
-    };
-    reader.onerror = () => reject(new Error('Could not read file'));
-    reader.readAsDataURL(file);
-  });
-}
-
-// ── Pantry helpers ────────────────────────────────────────────────────────────
-function pantryPct(item) {
-  const par = item.parQty > 0 ? item.parQty : 1;
-  return Math.max(0, Math.min(100, Math.round((item.qty / par) * 100)));
-}
-
-function pantryColor(item) {
-  if (item.qty <= 0) return 'var(--text-muted)';
-  const pct = pantryPct(item);
-  if (pct >= 50) return 'var(--priority-low)';
-  if (pct >= 20) return 'var(--priority-medium)';
-  return 'var(--priority-high)';
-}
-
-function recipeStock(recipe, pantryByName) {
-  const total = recipe.ingredients.length;
-  const have = recipe.ingredients.filter(ing => {
-    const p = pantryByName[ing.name.toLowerCase()];
-    return p && p.qty > 0;
-  }).length;
-  return { have, total };
-}
-
-function formatDayLabel(dateStr, offset) {
-  if (offset === 0) return 'Today';
-  if (offset === 1) return 'Tomorrow';
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' });
-}
-
-// ── Voice capture hook ────────────────────────────────────────────────────────
-const VOICE_ERROR_MSGS = {
-  'not-allowed':         'Microphone access denied. Allow it in browser settings.',
-  'audio-capture':       'No microphone found on this device.',
-  'network':             'Network error — speech service unavailable.',
-  'no-speech':           'No speech detected. Try speaking closer to the mic.',
-  'service-not-allowed': 'Speech service blocked. Open the app over HTTPS.',
-  'aborted':             null, // user cancelled — no message needed
-};
-
-function useVoice(onResult, onError) {
-  const [listening, setListening] = useState(false);
-  const [interim,   setInterim]   = useState('');
-  const recRef = useRef(null);
-  const supported = typeof window !== 'undefined' &&
-    !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-
-  const start = useCallback(() => {
-    if (!supported) { onError?.('Voice input is not supported in this browser.'); return; }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const r = new SR();
-    r.continuous = false; r.interimResults = true; r.lang = 'en-US';
-    r.onstart  = () => setListening(true);
-    r.onend    = () => { setListening(false); setInterim(''); };
-    r.onresult = (e) => {
-      const t = Array.from(e.results).map(r => r[0].transcript).join('');
-      setInterim(t);
-      if (e.results[e.results.length - 1].isFinal) { onResult(t); setInterim(''); }
-    };
-    r.onerror = (e) => {
-      setListening(false);
-      setInterim('');
-      const msg = VOICE_ERROR_MSGS[e.error];
-      if (msg) onError?.(msg);
-    };
-    recRef.current = r;
-    r.start();
-  }, [supported, onResult, onError]);
-
-  const stop = useCallback(() => recRef.current?.stop(), []);
-  return { listening, interim, start, stop, supported };
-}
+import { CAT_COLORS } from './shopping/constants.js';
+import {
+  IconMic, IconPlus, IconMinus, IconX, IconCheck, IconPencil, IconTrash,
+  IconCart, IconLocation, IconChevron, IconShare, IconLink, IconSparkle,
+  IconCalendar, IconNavigation, IconBarcode, IconBarcodeSm,
+  IconClock, IconServings, IconCamera, IconBook, NAV,
+} from './shopping/icons.jsx';
+import {
+  parseOne, parseItems, getSuggestions, daysSince, resizeImage,
+  pantryPct, pantryColor, recipeStock, formatDayLabel,
+} from './shopping/parsing.js';
+import { useVoice } from './shopping/useVoice.js';
 
 // ── ItemCard ──────────────────────────────────────────────────────────────────
 function ItemCard({ item, cat, onToggle, onUpdate, onEdit, onDelete }) {
@@ -1625,7 +1441,7 @@ export default function ShoppingList({
 
   // ── Voice ─────────────────────────────────────────────────────────────────
   const handleVoiceResult = useCallback((transcript) => {
-    parseItems(transcript).forEach(p => addItem(p)); // eslint-disable-line react-hooks/exhaustive-deps
+    parseItems(transcript).forEach(p => addItem(p));  
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleVoiceError = useCallback((msg) => {
@@ -1798,7 +1614,7 @@ export default function ShoppingList({
 
   const suggestions = useMemo(() =>
     getSuggestions(history, activeList?.items || []),
-  [history, activeList?.items]); // eslint-disable-line react-hooks/exhaustive-deps
+  [history, activeList?.items]);  
 
   // ── Lists center panel ─────────────────────────────────────────────────────
   const ListsCenterPanel = () => (

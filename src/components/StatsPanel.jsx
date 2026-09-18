@@ -121,7 +121,6 @@ export default function StatsPanel({ tasks, categories, streak, weeklyData, curr
     completed: tasks.filter(t => t.completed).length,
   }), [tasks]);
 
-  const maxDay = Math.max(...weekDates.map(d => weeklyData[d]?.total || 0), 1);
 
   return (
     <div className="stats-panel">
