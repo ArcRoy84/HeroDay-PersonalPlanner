@@ -48,6 +48,29 @@ describe('migrateFromLocalStorage', () => {
     expect(task?.createdAt).toBe('2026-09-01T00:00:00.000Z');
   });
 
+  it('backfills task fields that older rows predate', async () => {
+    seedLegacy({
+      mtp_tasks: [
+        // A row from before reminderOffsets/recurrence/multi-day existed.
+        { id: 'old', title: 'Legacy task', date: '2026-09-18', reminder: true },
+      ],
+    });
+
+    await migrateFromLocalStorage(db);
+    const task = await db.tasks.get('old');
+
+    // The legacy boolean meant "5 minutes before".
+    expect(task?.reminderOffsets).toEqual([5]);
+    expect(task?.reminder).toBe(true);
+    // Fields that did not exist must be present with sane defaults, not undefined.
+    expect(task?.recurrence).toBeNull();
+    expect(task?.completedDates).toEqual({});
+    expect(task?.endDate).toBeNull();
+    expect(task?.tags).toEqual([]);
+    expect(task?.priority).toBe('medium');
+    expect(task?.duration).toBe(30);
+  });
+
   it('is idempotent — a second run writes nothing', async () => {
     seedLegacy({ mtp_tasks: [{ id: 't1', title: 'First' }] });
 
@@ -84,7 +107,7 @@ describe('migrateFromLocalStorage', () => {
     expect(list?.name).toBe('Grocery');
     expect(list?.budget).toBe(80);
     // The nested array must not survive on the list row itself.
-    expect((list as Record<string, unknown>).items).toBeUndefined();
+    expect((list as unknown as Record<string, unknown>).items).toBeUndefined();
 
     const items = await db.shoppingItems.where('listId').equals('list1').toArray();
     expect(items).toHaveLength(2);

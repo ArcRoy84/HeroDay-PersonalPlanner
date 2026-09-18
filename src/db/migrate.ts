@@ -166,7 +166,40 @@ export async function migrateFromLocalStorage(db: HeroDayDB): Promise<MigrationR
 
   /* ── Write it all in one transaction ──────────────────────────────────── */
 
-  const tasks = legacyTasks.map(t => audited(t, ts)) as unknown as Task[];
+  // Tasks gained fields over the app's life (reminderOffsets, recurrence,
+  // multi-day, per-day completion). Older rows predate them, so defaults are
+  // filled in here rather than being re-derived at every read site.
+  const tasks: Task[] = legacyTasks.map(raw => audited({
+    id: typeof raw.id === 'string' ? raw.id : newId(),
+    title: typeof raw.title === 'string' ? raw.title : '',
+    priority: (raw.priority === 'high' || raw.priority === 'low' ? raw.priority : 'medium') as Task['priority'],
+    categoryId: typeof raw.categoryId === 'string' ? raw.categoryId : 'personal',
+    date: typeof raw.date === 'string' ? raw.date : '',
+    startTime: typeof raw.startTime === 'string' ? raw.startTime : '',
+    duration: typeof raw.duration === 'number' ? raw.duration : 30,
+    tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
+    // The boolean predates the offsets array; a legacy `true` meant "5 min before".
+    reminderOffsets: Array.isArray(raw.reminderOffsets)
+      ? (raw.reminderOffsets as number[])
+      : raw.reminder === true ? [5] : [],
+    reminder: Array.isArray(raw.reminderOffsets)
+      ? (raw.reminderOffsets as number[]).length > 0
+      : raw.reminder === true,
+    completed: raw.completed === true,
+    completedAt: typeof raw.completedAt === 'string' ? raw.completedAt : null,
+    description: typeof raw.description === 'string' ? raw.description : '',
+    location: typeof raw.location === 'string' ? raw.location : '',
+    endDate: typeof raw.endDate === 'string' && raw.endDate ? raw.endDate : null,
+    endTime: typeof raw.endTime === 'string' ? raw.endTime : '',
+    recurrence: raw.recurrence && typeof raw.recurrence === 'object'
+      && Array.isArray((raw.recurrence as { days?: unknown }).days)
+      ? { days: (raw.recurrence as { days: number[] }).days }
+      : null,
+    completedDates: raw.completedDates && typeof raw.completedDates === 'object'
+      ? (raw.completedDates as Record<string, boolean>)
+      : {},
+    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : ts,
+  }, ts));
   const categories = legacyCategories.map(c => audited(c, ts)) as unknown as Category[];
   const courses = legacyCourses.map(c => audited({ lessons: [], progress: 0, ...c }, ts)) as unknown as LearningCourse[];
   const goals = legacyGoals.map(g => audited(g, ts)) as unknown as LearningGoal[];

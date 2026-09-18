@@ -33,6 +33,11 @@ export interface Auditable {
 
 export type Priority = 'high' | 'medium' | 'low';
 
+/** Weekly repeat rule. `days` holds day-of-week indices, 0 = Sunday. */
+export interface Recurrence {
+  days: number[];
+}
+
 export interface Task extends Auditable {
   id: string;
   title: string;
@@ -42,9 +47,24 @@ export interface Task extends Auditable {
   startTime: TimeOnly;
   duration: number;
   tags: string[];
+  /** Kept in sync with `reminderOffsets.length > 0` by the task modal. */
   reminder: boolean;
+  /** Minutes before `startTime` to notify. Supersedes the boolean `reminder`. */
+  reminderOffsets: number[];
   completed: boolean;
+  completedAt: Timestamp | null;
   description: string;
+  location: string;
+  /** Multi-day tasks span `date`..`endDate`; `null` for single-day. */
+  endDate: DateOnly | null;
+  endTime: TimeOnly;
+  /** `null` when the task does not repeat. */
+  recurrence: Recurrence | null;
+  /**
+   * Per-day completion for recurring tasks, keyed by date. A recurring task
+   * has no single `completed` state — it is done or not done *on a given day*.
+   */
+  completedDates: Record<DateOnly, boolean>;
   createdAt: Timestamp;
 }
 
@@ -68,8 +88,10 @@ export type CourseMode = 'checklist' | 'progress';
 
 export interface Lesson {
   id: string;
-  title: string;
+  text: string;
+  notes: string;
   done: boolean;
+  completedAt: Timestamp | null;
 }
 
 export interface LearningCourse extends Auditable {
@@ -232,8 +254,12 @@ export interface BudgetSettings {
   cashOnHand: number;
 }
 
-/** Counts of completed tasks per ISO date, used by the stats panel. */
-export type WeeklyData = Record<DateOnly, number>;
+/** Task totals per ISO date, derived from `tasks` and used by the stats panel. */
+export interface DayTally {
+  total: number;
+  completed: number;
+}
+export type WeeklyData = Record<DateOnly, DayTally>;
 
 /**
  * Small singleton values live in one `settings` table keyed by name, rather
