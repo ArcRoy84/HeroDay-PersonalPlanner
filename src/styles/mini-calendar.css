@@ -1,0 +1,86 @@
+/* Mini calendar. */
+
+/* ============================================================
+   MINI CALENDAR
+   ============================================================ */
+.mini-cal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  flex-shrink: 0;
+}
+.mini-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.mini-cal-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  font-family: var(--font-mono);
+}
+.mini-cal-arrow:hover { background: var(--bg-hover); color: var(--text-primary); }
+.mini-cal-month-btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 3px 8px;
+  border-radius: 5px;
+  transition: var(--transition);
+}
+.mini-cal-month-btn:hover { background: var(--bg-hover); }
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+.mini-cal-dh {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2px 0 5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.mini-cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 0;
+  border-radius: 5px;
+  transition: var(--transition);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+.mini-cal-day:hover { background: var(--bg-hover); }
+.mini-cal-num {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1;
+  font-family: var(--font-mono);
+}
+.mini-cal-day.is-today { background: var(--accent-bg); }
+.mini-cal-day.is-today .mini-cal-num { color: var(--accent); font-weight: 700; }
+.mini-cal-day.is-selected { background: var(--accent); }
+.mini-cal-day.is-selected .mini-cal-num { color: white; font-weight: 700; }
+.mini-cal-day.is-today.is-selected { background: var(--accent); }
+.mini-cal-day.is-sunday .mini-cal-num { color: var(--priority-high); }
+.mini-cal-day.is-selected.is-sunday .mini-cal-num { color: white; }
+.mini-cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

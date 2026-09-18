@@ -1,0 +1,37 @@
+/* Boot screen shown while the database opens. */
+
+/* ── Boot screen ──────────────────────────────────────────────────────────────
+   Shown while IndexedDB opens and the one-time localStorage migration runs.
+   Deliberately minimal: it renders before any app state exists. */
+.app-boot {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.boot-message {
+  max-width: 34rem;
+  text-align: center;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.boot-message h1 {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  color: var(--text-primary, #e5e7eb);
+}
+
+.boot-message p { margin: 0 0 12px; line-height: 1.6; }
+
+.boot-error {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  color: var(--text-secondary, #9ca3af);
+  font-size: 0.8125rem;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

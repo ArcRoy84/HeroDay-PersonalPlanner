@@ -1,0 +1,69 @@
+/* Scrollbar styling, global responsive rules and animations. */
+
+/* ============================================================
+   SCROLLBAR STYLE
+   ============================================================ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 900px) {
+  .dashboard {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+    gap: 10px;
+    height: auto;
+  }
+
+  .dash-tile {
+    min-width: 150px;
+    flex-shrink: 0;
+  }
+
+  .app-body {
+    flex-direction: column;
+  }
+
+  .main-content { overflow: auto; }
+
+  .unscheduled-panel {
+    width: 140px;
+  }
+}
+
+@media (max-width: 600px) {
+  .header-brand .brand-name { display: none; }
+  .nav-tab span { display: none; }
+  .nav-tab { padding: 7px 10px; }
+  .fab { bottom: 20px; right: 16px; padding: 13px 16px; }
+  .fab-label { display: none; }
+  .modal { max-height: 95vh; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .stat-card.card-wide { grid-column: auto; }
+
+  .cl-toolbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .cl-sorts   { width: 100%; }
+  .cl-sorts .sort-select { flex: 1; }
+
+  .form-row-2 { grid-template-columns: 1fr; }
+  .priority-group { flex-direction: column; }
+}
+
+/* ============================================================
+   UTILITY ANIMATIONS
+   ============================================================ */
+@keyframes check-pop {
+  0%   { transform: scale(0); }
+  60%  { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+.task-completed .task-check svg { animation: check-pop 200ms ease; }

@@ -1,0 +1,83 @@
+/* Settings: export, import and legacy storage. */
+
+/* ── Settings: Your Data ──────────────────────────────────────────────────── */
+.data-hint {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.data-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary, #e5e7eb);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.data-btn:hover:not(:disabled) {
+  background: var(--surface-3, rgba(255, 255, 255, 0.08));
+  border-color: var(--accent, #7c66ff);
+}
+
+.data-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.data-btn-danger {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ef4444;
+}
+
+.data-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+
+/* Import is the one irreversible action, so it gets a distinct confirm step. */
+.data-confirm {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.data-confirm-text {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--text-primary, #e5e7eb);
+}
+
+.data-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.data-status {
+  margin: 10px 0 0;
+  font-size: 0.8125rem;
+  color: var(--accent, #7c66ff);
+}
+
+.data-status-error { color: #ef4444; }
+
+.data-legacy {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
