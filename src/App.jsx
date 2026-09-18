@@ -294,12 +294,7 @@ function HeroDay() {
 
           {view === 'shop' && (
             <ShoppingList
-              lists={shopping.lists}
-              setLists={shopping.setLists}
-              history={shopping.history}
-              setHistory={shopping.setHistory}
-              recipes={shopping.recipes}
-              setRecipes={shopping.setRecipes}
+              {...shopping}
               onAddToPlanner={(data) => addTask(data)}
             />
           )}

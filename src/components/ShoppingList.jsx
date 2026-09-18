@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useShoppingPrefs } from '../hooks/useShoppingPrefs';
-import { generateId, getToday, navigateDate } from '../utils/helpers.js';
-import { CATEGORIES as DEFAULT_CATEGORIES, CATEGORY_MAP, categorize } from '../data/shoppingCategories.js';
+import { getToday, navigateDate } from '../utils/helpers.js';
+import { newId } from '../db/ids';
+import { CATEGORY_MAP, categorize } from '../data/shoppingCategories.js';
 import ShoppingStoreMode from './ShoppingStoreMode.jsx';
 import BudgetView from './BudgetView.jsx';
 
@@ -1306,7 +1307,7 @@ function PantryManageModal({ items, units, onSave, onClose }) {
   function addPantryItem() {
     if (!name.trim()) return;
     setList(prev => [...prev, {
-      id: generateId(), name: name.trim(), qty: parseFloat(qty) || 0,
+      id: newId(), name: name.trim(), qty: parseFloat(qty) || 0,
       unit, parQty: Math.max(1, parseFloat(par) || 1), category: categorize(name),
     }]);
     setName(''); setQty(1); setUnit(''); setPar(2);
@@ -1405,7 +1406,7 @@ function RecipesView({ recipes, onSaveRecipe, onDeleteRecipe, onAddIngredients, 
     if (formRecipe?.id) {
       onSaveRecipe(prev => prev.map(r => r.id === formRecipe.id ? { ...r, ...data } : r));
     } else {
-      onSaveRecipe(prev => [...prev, { id: generateId(), ...data, createdAt: new Date().toISOString() }]);
+      onSaveRecipe(prev => [...prev, { id: newId(), ...data, createdAt: new Date().toISOString() }]);
     }
     setFormRecipe(undefined);
   }
@@ -1574,7 +1575,17 @@ function StoresView({ lists }) {
 }
 
 // ── Main ShoppingList ─────────────────────────────────────────────────────────
-export default function ShoppingList({ lists, setLists, history, setHistory, recipes, setRecipes, onAddToPlanner }) {
+export default function ShoppingList({
+  lists, history, recipes, setRecipes, onAddToPlanner,
+  // Item-level writes, one scoped call per user action — see db/shoppingOps.ts.
+  addItemToList: addItemRow,
+  updateItem: updateItemRow,
+  removeItem: removeItemRow,
+  toggleItem: toggleItemRow,
+  clearChecked: clearCheckedRow,
+  createList: createListRow,
+  removeList: removeListRow,
+}) {
   const [activeSection,  setActiveSection]  = useState('lists');
   const [activeId,       setActiveId]       = useState(() => lists[0]?.id || null);
   const [inputText,      setInputText]      = useState('');
@@ -1625,31 +1636,26 @@ export default function ShoppingList({ lists, setLists, history, setHistory, rec
   const { listening, interim, start: startVoice, stop: stopVoice, supported: voiceOk } = useVoice(handleVoiceResult, handleVoiceError);
 
   // ── List / item CRUD ──────────────────────────────────────────────────────
-  const updateList = useCallback((fn) => {
-    setLists(prev => prev.map(l => l.id === activeList?.id ? fn(l) : l));
-  }, [activeList?.id, setLists]);
+  // Every action below is a single scoped write against the shopping tables.
+  // Deduplication, purchase history and the pantry restock all happen inside
+  // those operations, atomically, rather than being stitched together here.
 
-  // Adds a parsed item to an arbitrary list by id (not necessarily the active one),
-  // optionally overriding its category/note — used by the recipe "Add to List" flow
-  // so ingredients can be routed to a user-chosen list and tagged with their source.
+  // Adds a parsed item to an arbitrary list by id (not necessarily the active
+  // one), optionally overriding its category/note — used by the recipe
+  // "Add to List" flow so ingredients can be routed to a chosen list and
+  // tagged with their source.
   const addItemToList = useCallback((listId, parsed, overrides = {}) => {
     if (!parsed?.name?.trim() || !listId) return;
-    const { qty, unit, name } = parsed;
-    const cat         = overrides.category || categorize(name);
-    const displayName = name.charAt(0).toUpperCase() + name.slice(1);
-    setLists(prev => prev.map(l => {
-      if (l.id !== listId) return l;
-      const dup = l.items.find(i => i.name.toLowerCase() === name.toLowerCase() && !i.checked);
-      if (dup) return { ...l, items: l.items.map(i =>
-        i.id === dup.id ? { ...i, qty: +(((i.qty || 1) + qty).toFixed(2)) } : i
-      )};
-      return { ...l, items: [...l.items, {
-        id: generateId(), name: displayName, qty, unit, category: cat,
-        storeLocation: '', note: overrides.note || '', estimatedPrice: null,
-        barcode: overrides.barcode || '', checked: false, addedAt: new Date().toISOString(),
-      }]};
-    }));
-  }, [setLists]);
+    const name = parsed.name.trim();
+    addItemRow(listId, {
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      qty: parsed.qty,
+      unit: parsed.unit,
+      category: overrides.category || categorize(name),
+      note: overrides.note || '',
+      barcode: overrides.barcode || '',
+    });
+  }, [addItemRow]);
 
   // Creates a fully-specified item (used by the barcode scan flow, where every
   // field is already known — either from a matched product or a manual entry —
@@ -1657,20 +1663,12 @@ export default function ShoppingList({ lists, setLists, history, setHistory, rec
   const createItemInList = useCallback((listId, fields) => {
     if (!fields?.name?.trim() || !listId) return;
     const name = fields.name.trim();
-    setLists(prev => prev.map(l => {
-      if (l.id !== listId) return l;
-      const dup = l.items.find(i => i.name.toLowerCase() === name.toLowerCase() && !i.checked);
-      if (dup) return { ...l, items: l.items.map(i =>
-        i.id === dup.id ? { ...i, qty: +(((i.qty || 1) + (fields.qty || 1)).toFixed(2)), barcode: fields.barcode || i.barcode } : i
-      )};
-      return { ...l, items: [...l.items, {
-        id: generateId(), name, qty: fields.qty || 1, unit: fields.unit || '',
-        category: fields.category || categorize(name), storeLocation: fields.storeLocation || '',
-        note: fields.note || '', estimatedPrice: fields.estimatedPrice ?? null, barcode: fields.barcode || '',
-        checked: false, addedAt: new Date().toISOString(),
-      }]};
-    }));
-  }, [setLists]);
+    addItemRow(listId, {
+      ...fields,
+      name,
+      category: fields.category || categorize(name),
+    });
+  }, [addItemRow]);
 
   const addItem = useCallback((parsed) => {
     if (!activeList) return;
@@ -1711,64 +1709,39 @@ export default function ShoppingList({ lists, setLists, history, setHistory, rec
     inputRef.current?.focus();
   };
 
+  // Ticking an item off also records the purchase and restocks the pantry.
+  // Those used to be three separate setState calls stitched together here,
+  // which needed care to avoid updating one component while rendering another;
+  // they are now one transaction inside the operation.
   const toggleItem = useCallback((itemId) => {
-    // Read the pre-toggle item off the current list snapshot, then fire the
-    // list/history/pantry updates as independent setState calls — nesting
-    // setHistory/setPantryItems inside the setLists updater (as this used to)
-    // triggers React's "update while rendering a different component" warning.
-    const item = activeList?.items.find(i => i.id === itemId);
-    const nowChecked = item && !item.checked;
-
-    updateList(l => ({ ...l, items: l.items.map(i => i.id === itemId ? { ...i, checked: !i.checked } : i) }));
-
-    if (nowChecked && item) {
-      setHistory(prev => {
-        const ex = prev.find(h => h.name.toLowerCase() === item.name.toLowerCase());
-        if (ex) return prev.map(h => h.name.toLowerCase() === item.name.toLowerCase()
-          ? { ...h, count: h.count + 1, lastBought: new Date().toISOString(), barcode: item.barcode || h.barcode } : h);
-        return [{ name: item.name, unit: item.unit, category: item.category,
-          estimatedPrice: item.estimatedPrice, barcode: item.barcode || '',
-          count: 1, lastBought: new Date().toISOString() },
-          ...prev].slice(0, 60);
-      });
-      // Purchased items restock the pantry tracker automatically
-      setPantryItems(prev => {
-        const idx = prev.findIndex(p => p.name.toLowerCase() === item.name.toLowerCase());
-        if (idx === -1) {
-          return [...prev, {
-            id: generateId(), name: item.name, qty: item.qty || 1, unit: item.unit || '',
-            category: item.category || 'other', parQty: Math.max(1, (item.qty || 1) * 2),
-          }];
-        }
-        const next = [...prev];
-        next[idx] = { ...next[idx], qty: +((next[idx].qty || 0) + (item.qty || 1)).toFixed(2) };
-        return next;
-      });
-    }
-  }, [activeList, updateList, setHistory, setPantryItems]);
+    toggleItemRow(itemId);
+  }, [toggleItemRow]);
 
   const updateItem = useCallback((itemId, updates) => {
-    updateList(l => ({ ...l, items: l.items.map(i => i.id === itemId ? { ...i, ...updates } : i) }));
-  }, [updateList]);
+    updateItemRow(itemId, updates);
+  }, [updateItemRow]);
 
   const deleteItem = useCallback((item) => {
-    updateList(l => ({ ...l, items: l.items.filter(i => i.id !== item.id) }));
+    removeItemRow(item.id);
     setDeletingItem(null);
-  }, [updateList]);
+  }, [removeItemRow]);
 
-  const clearChecked = () => updateList(l => ({ ...l, items: l.items.filter(i => !i.checked) }));
+  const clearChecked = () => {
+    if (!activeList) return;
+    clearCheckedRow(activeList.id);
+  };
 
-  const createList = (name) => {
-    const id = generateId();
-    setLists(prev => [...prev, { id, name, items: [], budget: null, createdAt: new Date().toISOString() }]);
+  const createList = async (name) => {
+    const id = await createListRow(name);
     setActiveId(id);
     setActiveSection('lists');
   };
 
   const deleteList = () => {
-    if (lists.length <= 1) return;
-    setLists(prev => prev.filter(l => l.id !== activeList.id));
-    setActiveId(lists.find(l => l.id !== activeList.id)?.id || null);
+    if (lists.length <= 1 || !activeList) return;
+    const fallback = lists.find(l => l.id !== activeList.id)?.id || null;
+    removeListRow(activeList.id);
+    setActiveId(fallback);
   };
 
   const shareList = () => {

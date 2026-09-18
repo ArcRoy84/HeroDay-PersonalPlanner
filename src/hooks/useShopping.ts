@@ -1,17 +1,18 @@
 /**
- * Shopping module state, presented in the nested shape the existing UI expects.
+ * Shopping module state and operations.
  *
- * `setLists` / `setHistory` / `setRecipes` accept the same updater functions the
- * component already passes, so `ShoppingList.jsx` needs no changes to its own
- * logic — only its storage moves.
+ * Reads still hand the UI the nested `lists[].items[]` shape it renders from,
+ * but writes are now per-item calls against the normalized tables rather than a
+ * reconcile of the whole array.
  */
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/schema';
 import { isLive } from '../db/repo';
-import { assembleLists, reconcileLists, type NestedList } from '../db/shopping';
+import { assembleLists, type NestedList } from '../db/shopping';
 import { now } from '../db/ids';
-import type { ShoppingHistoryEntry, ShoppingRecipe } from '../db/types';
+import * as ops from '../db/shoppingOps';
+import type { ShoppingHistoryEntry, ShoppingRecipe, ShoppingItem } from '../db/types';
 
 type Updater<T> = T | ((previous: T) => T);
 
@@ -20,9 +21,7 @@ const EMPTY_HISTORY: ShoppingHistoryEntry[] = [];
 const EMPTY_RECIPES: ShoppingRecipe[] = [];
 
 function resolve<T>(update: Updater<T>, previous: T): T {
-  return typeof update === 'function'
-    ? (update as (p: T) => T)(previous)
-    : update;
+  return typeof update === 'function' ? (update as (p: T) => T)(previous) : update;
 }
 
 export function useShopping() {
@@ -44,33 +43,46 @@ export function useShopping() {
     [recipeRows],
   );
 
-  // Updaters must see the latest lists even when several fire before the live
-  // query re-renders — a ref keeps them chained rather than each starting from
-  // the same stale snapshot.
-  const latestLists = useRef(lists);
-  latestLists.current = lists;
+  /* ── Item operations ──────────────────────────────────────────────────── */
 
-  const setLists = useCallback((update: Updater<NestedList[]>) => {
-    const next = resolve(update, latestLists.current);
-    latestLists.current = next;
-    void reconcileLists(next);
+  const addItemToList = useCallback((listId: string, fields: ops.NewItemFields) => {
+    void ops.addItemToList(listId, fields);
   }, []);
 
-  const setHistory = useCallback((update: Updater<ShoppingHistoryEntry[]>) => {
-    void (async () => {
-      const current = (await db.shoppingHistory.toArray()).filter(isLive);
-      const next = resolve(update, current);
-      const timestamp = now();
-      const keep = new Set(next.map(h => h.name));
-      await db.shoppingHistory.bulkPut([
-        ...next.map(h => ({ ...h, updatedAt: timestamp, deletedAt: null })),
-        ...current
-          .filter(h => !keep.has(h.name))
-          .map(h => ({ ...h, deletedAt: timestamp, updatedAt: timestamp })),
-      ]);
-    })();
+  const updateItem = useCallback((itemId: string, updates: Partial<ShoppingItem>) => {
+    void ops.updateItem(itemId, updates);
   }, []);
 
+  const removeItem = useCallback((itemId: string) => {
+    void ops.removeItem(itemId);
+  }, []);
+
+  const toggleItem = useCallback((itemId: string) => {
+    void ops.toggleItemChecked(itemId);
+  }, []);
+
+  const clearChecked = useCallback((listId: string) => {
+    void ops.clearCheckedItems(listId);
+  }, []);
+
+  /* ── List operations ──────────────────────────────────────────────────── */
+
+  // Returns the new id synchronously so the caller can select the list it just
+  // created without waiting for the live query to catch up.
+  const createList = useCallback((name: string): Promise<string> => ops.createList(name), []);
+
+  const removeList = useCallback((listId: string) => {
+    void ops.removeList(listId);
+  }, []);
+
+  const updateList = useCallback((listId: string, updates: Parameters<typeof ops.updateList>[1]) => {
+    void ops.updateList(listId, updates);
+  }, []);
+
+  /* ── Recipes ──────────────────────────────────────────────────────────── */
+
+  // Recipes keep the array-setter shape: the recipe editor builds a whole
+  // recipe object at once, so there is no partial write to scope down to.
   const setRecipes = useCallback((update: Updater<ShoppingRecipe[]>) => {
     void (async () => {
       const current = (await db.shoppingRecipes.toArray()).filter(isLive);
@@ -89,6 +101,8 @@ export function useShopping() {
   return {
     lists, history, recipes,
     loading: listRows === undefined || itemRows === undefined,
-    setLists, setHistory, setRecipes,
+    addItemToList, updateItem, removeItem, toggleItem, clearChecked,
+    createList, removeList, updateList,
+    setRecipes,
   };
 }
