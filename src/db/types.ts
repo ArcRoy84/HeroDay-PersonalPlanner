@@ -123,7 +123,55 @@ export interface ShoppingList extends Auditable {
   id: string;
   name: string;
   budget: number | null;
+  /**
+   * The store this list is for, or `null` for a plain list ("Party", "Weekly").
+   * Optional by design: several lists can share one store (Costco - Weekly,
+   * Costco - Bulk), and lists that predate stores stay valid without a store.
+   * Rows written before stores existed have no value at all, so read it as
+   * `list.storeId ?? null`.
+   */
+  storeId: string | null;
   createdAt: Timestamp;
+}
+
+/**
+ * A place you shop — the thing a list can be linked to.
+ *
+ * Distinct from `ShoppingItem.storeLocation`, which is *where inside a store*
+ * an item lives ("Aisle 4", "Deli Counter").
+ */
+export interface Store extends Auditable {
+  id: string;
+  name: string;
+  /** Emoji shown when there is no `logo`. Defaults to the category's emoji. */
+  icon: string;
+  /**
+   * Optional uploaded logo as a resized JPEG data URL. A string rather than a
+   * Blob on purpose: the JSON backup uses JSON.stringify, which turns a Blob
+   * into `{}`, so a Blob logo would vanish from every export.
+   */
+  logo: string | null;
+  categoryId: string;
+  address: string;
+  city: string;
+  /** State, province or region. */
+  region: string;
+  postalCode: string;
+  country: string;
+  lat: number | null;
+  lon: number | null;
+  /** Free text, e.g. "Mon–Sat 8–20, Sun 9–14". */
+  hours: string;
+  notes: string;
+  createdAt: Timestamp;
+}
+
+/** Editable type of store: Supermarket, Bakery, Hardware Store… */
+export interface StoreCategory extends Auditable {
+  id: string;
+  label: string;
+  emoji: string;
+  color: string;
 }
 
 /**

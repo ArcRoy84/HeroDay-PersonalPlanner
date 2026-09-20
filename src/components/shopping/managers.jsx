@@ -3,10 +3,16 @@ import React, { useState } from 'react';
 import { IconX, IconPlus, IconTrash, IconPencil } from './icons.jsx';
 import { CAT_COLORS } from './constants.js';
 
-function ManageCategoriesModal({ categories, onSave, onClose }) {
+function ManageCategoriesModal({
+  categories, onSave, onClose,
+  title = 'Shopping Categories',
+  // Ids that cannot be deleted (e.g. the store catch-all 'other').
+  protectedIds = [],
+  newEmojiDefault = '🛒',
+}) {
   const [cats,      setCats]      = useState(categories.map(c => ({ ...c })));
   const [editingId, setEditingId] = useState(null);
-  const [newEmoji,  setNewEmoji]  = useState('🛒');
+  const [newEmoji,  setNewEmoji]  = useState(newEmojiDefault);
   const [newLabel,  setNewLabel]  = useState('');
   const [newColor,  setNewColor]  = useState(CAT_COLORS[0]);
 
@@ -14,7 +20,7 @@ function ManageCategoriesModal({ categories, onSave, onClose }) {
     if (!newLabel.trim()) return;
     setCats(prev => [...prev, { id: `cat_${Date.now()}`, label: newLabel.trim(), emoji: newEmoji, color: newColor }]);
     setNewLabel('');
-    setNewEmoji('🛒');
+    setNewEmoji(newEmojiDefault);
     setNewColor(CAT_COLORS[0]);
   }
 
@@ -36,7 +42,7 @@ function ManageCategoriesModal({ categories, onSave, onClose }) {
     <div className="shop-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="shop-dialog shop-dialog--lg">
         <div className="shop-dialog-header">
-          <h4 className="shop-dialog-title">Shopping Categories</h4>
+          <h4 className="shop-dialog-title">{title}</h4>
           <button className="sic-act" onClick={onClose}><IconX /></button>
         </div>
 
@@ -107,9 +113,12 @@ function ManageCategoriesModal({ categories, onSave, onClose }) {
                   </div>
                   <div className="scat-edit-actions">
                     <button className="btn-ghost sm" onClick={() => setEditingId(null)}>Done</button>
-                    <button className="sic-act sic-act--del" onClick={() => deleteCat(cat.id)}>
-                      <IconTrash />
-                    </button>
+                    {!protectedIds.includes(cat.id) && (
+                      <button className="sic-act sic-act--del" onClick={() => deleteCat(cat.id)}
+                        title="Delete category">
+                        <IconTrash />
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (

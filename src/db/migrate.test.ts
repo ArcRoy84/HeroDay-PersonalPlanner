@@ -108,6 +108,8 @@ describe('migrateFromLocalStorage', () => {
     expect(list?.budget).toBe(80);
     // The nested array must not survive on the list row itself.
     expect((list as unknown as Record<string, unknown>).items).toBeUndefined();
+    // Stores did not exist in the localStorage era.
+    expect(list?.storeId).toBeNull();
 
     const items = await db.shoppingItems.where('listId').equals('list1').toArray();
     expect(items).toHaveLength(2);

@@ -13,11 +13,14 @@ import { CategorySection } from './shopping/items.jsx';
 import { EditItemModal } from './shopping/EditItemModal.jsx';
 import { ScanItemModal } from './shopping/ScanItemModal.jsx';
 import {
-  DeleteConfirmModal, AddToPlannerModal, NewListDialog,
+  DeleteConfirmModal, ConfirmModal, AddToPlannerModal, NewListDialog,
 } from './shopping/dialogs.jsx';
 import { ManageCategoriesModal, ManageUnitsModal } from './shopping/managers.jsx';
 import { RecipesView } from './shopping/recipes.jsx';
-import { AllItemsView, StoresView } from './shopping/views.jsx';
+import { AllItemsView } from './shopping/views.jsx';
+import { StoresView, StoreIcon } from './shopping/stores.jsx';
+import { StoreFormModal } from './shopping/StoreFormModal.jsx';
+import { OTHER_STORE_CATEGORY_ID } from '../data/storeCategories.js';
 
 export default function ShoppingList({
   lists, history, recipes, setRecipes, onAddToPlanner,
@@ -29,6 +32,10 @@ export default function ShoppingList({
   clearChecked: clearCheckedRow,
   createList: createListRow,
   removeList: removeListRow,
+  // Stores — see db/storeOps.ts.
+  stores, storeCategories,
+  createStore, updateStore, removeStore,
+  saveStoreCategories, linkListToStore, createListForStore,
 }) {
   const [activeSection,  setActiveSection]  = useState('lists');
   const [activeId,       setActiveId]       = useState(() => lists[0]?.id || null);
@@ -42,6 +49,10 @@ export default function ShoppingList({
   const [showPlanner,    setShowPlanner]    = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [showUnits,      setShowUnits]      = useState(false);
+  // Store form: undefined = closed, null = adding, a store = editing it.
+  const [storeForm,      setStoreForm]      = useState(undefined);
+  const [showStoreCats,  setShowStoreCats]  = useState(false);
+  const [deletingStore,  setDeletingStore]  = useState(null);
   const [copyMsg,        setCopyMsg]        = useState(false);
   const [voiceError,     setVoiceError]     = useState('');
   // Store categories, the pantry tracker and the unit list are persisted in
@@ -175,8 +186,41 @@ export default function ShoppingList({
     clearCheckedRow(activeList.id);
   };
 
-  const createList = async (name) => {
-    const id = await createListRow(name);
+  const storeMap = useMemo(
+    () => Object.fromEntries(stores.map(s => [s.id, s])),
+    [stores],
+  );
+
+  const openList = (listId) => {
+    setActiveId(listId);
+    setActiveSection('lists');
+  };
+
+  // Creating with "also make a list" selects that list, so the store the user
+  // just added is immediately the one they are looking at.
+  const handleSaveStore = async (input, { createList: withList }) => {
+    if (storeForm) {
+      await updateStore(storeForm.id, input);
+    } else {
+      const { listId } = await createStore(input, { createList: withList });
+      if (listId) setActiveId(listId);
+    }
+    setStoreForm(undefined);
+  };
+
+  const handleAddListForStore = async (store) => {
+    const listId = await createListForStore(store.id);
+    if (listId) openList(listId);
+  };
+
+  const confirmDeleteStore = async () => {
+    const store = deletingStore;
+    setDeletingStore(null);
+    if (store) await removeStore(store.id);
+  };
+
+  const createList = async (name, storeId = null) => {
+    const id = await createListRow(name, storeId);
     setActiveId(id);
     setActiveSection('lists');
   };
@@ -250,13 +294,17 @@ export default function ShoppingList({
       {/* List selector tabs */}
       <div className="shop-list-tabs-bar">
         <div className="shop-list-tabs">
-          {lists.map(l => (
-            <button key={l.id}
-              className={`shop-list-chip ${activeList?.id === l.id ? 'shop-list-chip--active' : ''}`}
-              onClick={() => setActiveId(l.id)}>
-              {l.name}
-            </button>
-          ))}
+          {lists.map(l => {
+            const store = l.storeId ? storeMap[l.storeId] : null;
+            return (
+              <button key={l.id}
+                className={`shop-list-chip ${store ? 'shop-list-chip--store' : ''} ${activeList?.id === l.id ? 'shop-list-chip--active' : ''}`}
+                onClick={() => setActiveId(l.id)}>
+                {store && <StoreIcon store={store} size={16} />}
+                {l.name}
+              </button>
+            );
+          })}
         </div>
         <button className="shop-store-mode-btn" onClick={() => setStoreMode(true)}>
           <IconNavigation /><span>Store Mode</span>
@@ -268,6 +316,15 @@ export default function ShoppingList({
         </button>
         <button className="btn-ghost sm" onClick={() => setShowCategories(true)}>Categories</button>
         <button className="btn-ghost sm" onClick={() => setShowUnits(true)}>Units</button>
+        {activeList && (stores.length > 0 || activeList.storeId) && (
+          <select className="form-select sm store-link-select"
+            value={storeMap[activeList.storeId] ? activeList.storeId : ''}
+            onChange={e => linkListToStore(activeList.id, e.target.value || null)}
+            aria-label="Store for this list">
+            <option value="">No store</option>
+            {stores.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
+          </select>
+        )}
         {activeList && lists.length > 1 && (
           <button className="btn-ghost sm shop-del-list" onClick={deleteList}>Delete list</button>
         )}
@@ -422,7 +479,17 @@ export default function ShoppingList({
           <BudgetView lists={lists} />
         )}
         {activeSection === 'items'  && <AllItemsView lists={lists} catMap={catMap} categories={categories} />}
-        {activeSection === 'stores' && <StoresView lists={lists} />}
+        {activeSection === 'stores' && (
+          <StoresView
+            stores={stores} storeCategories={storeCategories} lists={lists}
+            onAdd={() => setStoreForm(null)}
+            onEdit={setStoreForm}
+            onDelete={setDeletingStore}
+            onAddList={handleAddListForStore}
+            onLinkList={linkListToStore}
+            onOpenList={openList}
+            onManageCategories={() => setShowStoreCats(true)} />
+        )}
       </div>
 
       {/* ── RIGHT PANEL ───────────────────────────────────────────────────── */}
@@ -541,7 +608,7 @@ export default function ShoppingList({
       )}
 
       {showNewList && (
-        <NewListDialog onCreate={createList} onClose={() => setShowNewList(false)} />
+        <NewListDialog stores={stores} onCreate={createList} onClose={() => setShowNewList(false)} />
       )}
 
       {showPlanner && (
@@ -563,6 +630,35 @@ export default function ShoppingList({
           units={units}
           onSave={updateUnits}
           onClose={() => setShowUnits(false)} />
+      )}
+
+      {storeForm !== undefined && (
+        <StoreFormModal
+          store={storeForm}
+          categories={storeCategories}
+          escapeDisabled={showStoreCats}
+          onSave={handleSaveStore}
+          onManageCategories={() => setShowStoreCats(true)}
+          onClose={() => setStoreForm(undefined)} />
+      )}
+
+      {showStoreCats && (
+        <ManageCategoriesModal
+          title="Store Categories"
+          categories={storeCategories}
+          newEmojiDefault="🏪"
+          protectedIds={[OTHER_STORE_CATEGORY_ID]}
+          onSave={cats => saveStoreCategories(cats).catch(console.error)}
+          onClose={() => setShowStoreCats(false)} />
+      )}
+
+      {deletingStore && (
+        <ConfirmModal
+          title="Delete store?"
+          message={`"${deletingStore.name}" will be removed. Its shopping lists are kept as regular lists.`}
+          confirmLabel="Delete store"
+          onConfirm={() => confirmDeleteStore()}
+          onClose={() => setDeletingStore(null)} />
       )}
     </div>
 

@@ -5,7 +5,7 @@ import type { ShoppingList, ShoppingItem } from './types';
 const ts = '2026-09-18T00:00:00.000Z';
 
 const makeList = (id: string, name: string): ShoppingList =>
-  ({ id, name, budget: null, createdAt: ts, updatedAt: ts, deletedAt: null });
+  ({ id, name, budget: null, storeId: null, createdAt: ts, updatedAt: ts, deletedAt: null });
 
 const makeItem = (id: string, listId: string, name: string): ShoppingItem =>
   ({ id, listId, name, qty: 1, unit: '', category: 'other', storeLocation: '',

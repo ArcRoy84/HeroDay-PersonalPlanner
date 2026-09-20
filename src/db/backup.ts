@@ -13,9 +13,28 @@
  */
 import { db } from './schema';
 import { now } from './ids';
+import { ensureDefaultStoreCategories } from './storeOps';
 
-/** Bumped when the file layout changes in a way importers must notice. */
-export const BACKUP_VERSION = 1;
+/**
+ * Bumped when the file layout changes in a way importers must notice.
+ *
+ * 2 — added `stores` and `storeCategories`. An older build refuses a v2 file
+ * outright (see parseBackup) rather than importing it and silently dropping the
+ * stores it does not know about.
+ */
+export const BACKUP_VERSION = 2;
+
+/**
+ * The backup version in which a table first appeared; anything not listed has
+ * been there since version 1. This is how an import tells "this old file has no
+ * stores because stores did not exist yet" (so a replace should clear them)
+ * from "this file is malformed and is missing a table" (so it should not wipe
+ * anything).
+ */
+const TABLE_SINCE: Partial<Record<string, number>> = {
+  stores: 2,
+  storeCategories: 2,
+};
 
 /** Tables included in a backup, in dependency order (lists before items). */
 const EXPORTED_TABLES = [
@@ -23,6 +42,7 @@ const EXPORTED_TABLES = [
   'learningCourses', 'learningGoals',
   'shoppingLists', 'shoppingItems', 'shoppingHistory', 'shoppingRecipes',
   'shoppingCategories', 'pantry',
+  'stores', 'storeCategories',
   'budgetCategories', 'budgetIncome', 'budgetBills', 'budgetExpenses',
   'settings',
 ] as const;
@@ -139,9 +159,15 @@ export async function importData(
   await db.transaction('rw', db.tables, async () => {
     for (const name of EXPORTED_TABLES) {
       const rows = backup.data[name];
-      // A backup from an older format may simply not have a table. That is not
-      // an error; it means there was nothing to save.
       if (!Array.isArray(rows)) {
+        // A file from before this table existed genuinely has none of it, so
+        // "replace" must leave the table empty rather than keep what is here.
+        // A file that *should* have the table but does not is malformed, and
+        // is left alone rather than treated as an instruction to wipe it.
+        const introducedIn = TABLE_SINCE[name] ?? 1;
+        if (mode === 'replace' && backup.version < introducedIn) {
+          await db.table(name).clear();
+        }
         imported[name] = 0;
         continue;
       }
@@ -154,6 +180,11 @@ export async function importData(
       total += rows.length;
     }
   });
+
+  // A restore can leave the store category list empty (an older file, or a
+  // replace over a database that had none). Put the defaults back so the
+  // Stores tab is usable without a reload.
+  await ensureDefaultStoreCategories();
 
   return { imported, total };
 }

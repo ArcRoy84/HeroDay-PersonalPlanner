@@ -205,11 +205,11 @@ export async function toggleItemChecked(itemId: string): Promise<void> {
 
 /* ── Lists ──────────────────────────────────────────────────────────────── */
 
-export async function createList(name: string): Promise<string> {
+export async function createList(name: string, storeId: string | null = null): Promise<string> {
   const id = newId();
   const timestamp = now();
   const row: ShoppingList = {
-    id, name, budget: null,
+    id, name, budget: null, storeId,
     createdAt: timestamp, updatedAt: timestamp, deletedAt: null,
   };
   await db.shoppingLists.put(row);

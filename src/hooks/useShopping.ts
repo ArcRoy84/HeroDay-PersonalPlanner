@@ -69,7 +69,10 @@ export function useShopping() {
 
   // Returns the new id synchronously so the caller can select the list it just
   // created without waiting for the live query to catch up.
-  const createList = useCallback((name: string): Promise<string> => ops.createList(name), []);
+  const createList = useCallback(
+    (name: string, storeId: string | null = null): Promise<string> => ops.createList(name, storeId),
+    [],
+  );
 
   const removeList = useCallback((listId: string) => {
     void ops.removeList(listId);

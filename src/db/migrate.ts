@@ -108,6 +108,8 @@ export async function migrateFromLocalStorage(db: HeroDayDB): Promise<MigrationR
       id: listId,
       name: typeof raw.name === 'string' ? raw.name : 'Untitled',
       budget: typeof raw.budget === 'number' ? raw.budget : null,
+      // Stores did not exist in the localStorage era.
+      storeId: null,
       createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : ts,
     }, ts));
 

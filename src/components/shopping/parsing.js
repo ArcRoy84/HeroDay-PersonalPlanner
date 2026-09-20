@@ -44,7 +44,9 @@ function daysSince(iso) {
 // row in the `shoppingRecipes` table. IndexedDB has far more headroom than the
 // localStorage this used to live in, but downscaling still earns its keep: it
 // keeps each photo in the tens of KB, so reads stay fast and a future sync has
-// less to push. Storing them as Blobs instead would be the next improvement.
+// less to push. Do not switch these to Blobs without teaching the JSON backup
+// about them: JSON.stringify turns a Blob into {}, so they would silently
+// vanish from every export. The same applies to store logos.
 function resizeImage(file, maxW = 640, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -56,6 +58,9 @@ function resizeImage(file, maxW = 640, quality = 0.82) {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
+        // JPEG has no transparency, so a transparent PNG would come out black.
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL('image/jpeg', quality));
       };

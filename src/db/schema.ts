@@ -13,10 +13,43 @@ import type {
   Task, Category, Note,
   LearningCourse, LearningGoal,
   ShoppingList, ShoppingItem, ShoppingHistoryEntry, ShoppingRecipe,
-  ShoppingCategory, PantryItem,
+  ShoppingCategory, PantryItem, Store, StoreCategory,
   BudgetCategory, BudgetIncome, BudgetBill, BudgetExpense,
   SettingRow, MetaRow,
 } from './types';
+
+/**
+ * The version-1 table definitions, kept as data so the upgrade to version 2 can
+ * be tested against a database that really was created at version 1.
+ */
+export const SCHEMA_V1 = {
+  // Planner
+  tasks: 'id, date, categoryId, createdAt',
+  categories: 'id',
+  notes: 'id, date',
+
+  // Learning
+  learningCourses: 'id, goalId, categoryId',
+  learningGoals: 'id',
+
+  // Shopping — items lifted out of the nested list.items array
+  shoppingLists: 'id, createdAt',
+  shoppingItems: 'id, listId, category, [listId+category]',
+  shoppingHistory: 'name, barcode, lastBought',
+  shoppingRecipes: 'id',
+  shoppingCategories: 'id',
+  pantry: 'id, name, category',
+
+  // Budget
+  budgetCategories: 'id, type',
+  budgetIncome: 'id',
+  budgetBills: 'id, dueDay',
+  budgetExpenses: 'id, categoryId, date, [categoryId+date]',
+
+  // Singletons & bookkeeping
+  settings: 'key',
+  meta: 'key',
+};
 
 export class HeroDayDB extends Dexie {
   tasks!: EntityTable<Task, 'id'>;
@@ -32,6 +65,8 @@ export class HeroDayDB extends Dexie {
   shoppingRecipes!: EntityTable<ShoppingRecipe, 'id'>;
   shoppingCategories!: EntityTable<ShoppingCategory, 'id'>;
   pantry!: EntityTable<PantryItem, 'id'>;
+  stores!: EntityTable<Store, 'id'>;
+  storeCategories!: EntityTable<StoreCategory, 'id'>;
 
   budgetCategories!: EntityTable<BudgetCategory, 'id'>;
   budgetIncome!: EntityTable<BudgetIncome, 'id'>;
@@ -44,34 +79,23 @@ export class HeroDayDB extends Dexie {
   constructor(name = 'heroday') {
     super(name);
 
-    this.version(1).stores({
-      // Planner
-      tasks: 'id, date, categoryId, createdAt',
-      categories: 'id',
-      notes: 'id, date',
+    this.version(1).stores(SCHEMA_V1);
 
-      // Learning
-      learningCourses: 'id, goalId, categoryId',
-      learningGoals: 'id',
-
-      // Shopping — items lifted out of the nested list.items array
-      shoppingLists: 'id, createdAt',
-      shoppingItems: 'id, listId, category, [listId+category]',
-      shoppingHistory: 'name, barcode, lastBought',
-      shoppingRecipes: 'id',
-      shoppingCategories: 'id',
-      pantry: 'id, name, category',
-
-      // Budget
-      budgetCategories: 'id, type',
-      budgetIncome: 'id',
-      budgetBills: 'id, dueDay',
-      budgetExpenses: 'id, categoryId, date, [categoryId+date]',
-
-      // Singletons & bookkeeping
-      settings: 'key',
-      meta: 'key',
-    });
+    // Version 2 adds stores. `storeId` on shoppingLists is deliberately not
+    // indexed — IndexedDB drops rows whose indexed value is null, and most
+    // lists have no store — so the link is filtered in memory instead.
+    this.version(2)
+      .stores({
+        stores: 'id, categoryId',
+        storeCategories: 'id',
+      })
+      .upgrade(tx =>
+        // Existing lists predate the link; give them an explicit "no store" so
+        // the stored shape matches the ShoppingList type.
+        tx.table('shoppingLists').toCollection().modify(list => {
+          if (list.storeId === undefined) list.storeId = null;
+        }),
+      );
   }
 }
 

@@ -21,7 +21,7 @@ beforeEach(async () => {
     db.pantry.clear(),
   ]);
   await db.shoppingLists.put({
-    id: LIST, name: 'Grocery', budget: null,
+    id: LIST, name: 'Grocery', budget: null, storeId: null,
     createdAt: '2026-09-18T00:00:00.000Z',
     updatedAt: '2026-09-18T00:00:00.000Z', deletedAt: null,
   });

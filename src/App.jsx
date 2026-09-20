@@ -15,6 +15,7 @@ import { useDatabaseReady } from './hooks/useDatabaseReady';
 import { useTasks, useCategories } from './hooks/useTasks';
 import { useLearning } from './hooks/useLearning';
 import { useShopping } from './hooks/useShopping';
+import { useStores } from './hooks/useStores';
 import { useSetting } from './hooks/useSetting';
 
 const NO_STREAK = { count: 0, lastDate: null };
@@ -60,6 +61,7 @@ function HeroDay() {
   const { categories, addCategory: addCategoryRow, deleteCategory } = useCategories();
   const learning = useLearning(getToday());
   const shopping = useShopping();
+  const stores = useStores();
 
   const [theme, setTheme] = useSetting('theme', 'dark');
   const [view, setView] = useSetting('view', 'checklist');
@@ -295,6 +297,7 @@ function HeroDay() {
           {view === 'shop' && (
             <ShoppingList
               {...shopping}
+              {...stores}
               onAddToPlanner={(data) => addTask(data)}
             />
           )}

@@ -58,6 +58,30 @@ describe('bootDatabase', () => {
     expect(await db.budgetCategories.count()).toBe(0);
   });
 
+  it('seeds the store categories, including the catch-all', async () => {
+    await bootDatabase();
+
+    const ids = (await db.storeCategories.toArray()).map(c => c.id);
+    expect(ids).toContain('supermarket');
+    expect(ids).toContain('other');
+  });
+
+  it('gives the default list an explicit "no store"', async () => {
+    await bootDatabase();
+
+    expect((await db.shoppingLists.get('default'))?.storeId).toBeNull();
+  });
+
+  it('does not duplicate store categories on a second boot', async () => {
+    await bootDatabase();
+    const first = await db.storeCategories.count();
+
+    resetBootForTests();
+    await bootDatabase();
+
+    expect(await db.storeCategories.count()).toBe(first);
+  });
+
   it('runs once per page load even when called concurrently', async () => {
     // Mirrors StrictMode's double-invoked effect: two callers, one boot.
     await Promise.all([bootDatabase(), bootDatabase(), bootDatabase()]);

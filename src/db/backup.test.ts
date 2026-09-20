@@ -172,3 +172,104 @@ describe('backupFilename', () => {
     expect(name).not.toMatch(/[:<>"/\\|?*]/);
   });
 });
+
+describe('stores in backups', () => {
+  const LOGO = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==';
+  const aStore = (id: string, name: string, logo: string | null = null) => ({
+    id, name, icon: '🏪', logo, categoryId: 'supermarket', address: '1 Main St', city: 'Springfield',
+    region: 'IL', postalCode: '62704', country: 'US', lat: 39.78, lon: -89.65,
+    hours: 'Mon-Sat 8-20', notes: 'Park at the back', createdAt: ts, updatedAt: ts, deletedAt: null,
+  });
+
+  it('exports both new tables', async () => {
+    await db.stores.put(aStore('s1', 'Costco'));
+    await db.storeCategories.put({ id: 'supermarket', label: 'Supermarket', emoji: '🛒', color: '#97C459', updatedAt: ts, deletedAt: null });
+
+    const backup = await exportData();
+
+    expect(backup.version).toBe(2);
+    expect(backup.data.stores).toHaveLength(1);
+    expect(backup.data.storeCategories).toHaveLength(1);
+    expect(backup.counts.stores).toBe(1);
+  });
+
+  it('round-trips a store including its logo and coordinates', async () => {
+    await db.stores.put(aStore('s1', 'Costco', LOGO));
+
+    const text = await exportToJSON();
+    await db.stores.clear();
+    await importFromJSON(text);
+
+    const restored = await db.stores.get('s1');
+    // A Blob would have come back as {}. A string survives.
+    expect(restored?.logo).toBe(LOGO);
+    expect(restored?.lat).toBe(39.78);
+    expect(restored?.hours).toBe('Mon-Sat 8-20');
+  });
+
+  it('round-trips the list-to-store link', async () => {
+    await db.shoppingLists.put({ id: 'l1', name: 'Costco', budget: null, storeId: 's1', createdAt: ts, updatedAt: ts, deletedAt: null });
+
+    const text = await exportToJSON();
+    await db.shoppingLists.clear();
+    await importFromJSON(text);
+
+    expect((await db.shoppingLists.get('l1'))?.storeId).toBe('s1');
+  });
+
+  it('a v1 backup, replaced in, leaves no stores from before it', async () => {
+    await db.stores.put(aStore('mine', 'Stores that did not exist in the backup'));
+    const v1File = JSON.stringify({
+      format: 'heroday-backup', version: 1, exportedAt: ts, counts: {},
+      data: { tasks: [], shoppingLists: [{ id: 'l1', name: 'Grocery', budget: null, createdAt: ts, updatedAt: ts, deletedAt: null }] },
+    });
+
+    await importFromJSON(v1File, 'replace');
+
+    // The file predates stores, so the honest state is "no stores".
+    expect(await db.stores.count()).toBe(0);
+    // Its list has no storeId at all; the app must read that as "no store".
+    expect((await db.shoppingLists.get('l1') as unknown as { storeId?: string | null }).storeId ?? null).toBeNull();
+  });
+
+  it('a v1 backup, merged in, keeps existing stores', async () => {
+    await db.stores.put(aStore('mine', 'Keep me'));
+    const v1File = JSON.stringify({
+      format: 'heroday-backup', version: 1, exportedAt: ts, counts: {}, data: { tasks: [] },
+    });
+
+    await importFromJSON(v1File, 'merge');
+
+    expect(await db.stores.count()).toBe(1);
+  });
+
+  it('does not wipe stores for a current-format file that merely lacks the table', async () => {
+    // Version 2 knows about stores, so a v2 file with no "stores" key is
+    // malformed, not an instruction to delete them.
+    await db.stores.put(aStore('mine', 'Keep me'));
+    const oddFile = JSON.stringify({
+      format: 'heroday-backup', version: 2, exportedAt: ts, counts: {}, data: { tasks: [] },
+    });
+
+    await importFromJSON(oddFile, 'replace');
+
+    expect(await db.stores.count()).toBe(1);
+  });
+
+  it('restores the default store categories after a replace that left none', async () => {
+    const v1File = JSON.stringify({
+      format: 'heroday-backup', version: 1, exportedAt: ts, counts: {}, data: {},
+    });
+
+    await importFromJSON(v1File, 'replace');
+
+    const live = (await db.storeCategories.toArray()).filter(c => !c.deletedAt);
+    expect(live.map(c => c.id)).toContain('supermarket');
+    expect(live.map(c => c.id)).toContain('other');
+  });
+
+  it('rejects a file from a newer format than this build understands', () => {
+    const future = JSON.stringify({ format: 'heroday-backup', version: 3, data: {} });
+    expect(() => parseBackup(future)).toThrow(/newer version/);
+  });
+});

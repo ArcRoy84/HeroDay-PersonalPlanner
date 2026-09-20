@@ -112,13 +112,21 @@ function AddToPlannerModal({ listName, onAdd, onClose }) {
 
 // ── ManageCategoriesModal ─────────────────────────────────────────────────────
 
-function NewListDialog({ onCreate, onClose }) {
+function NewListDialog({ onCreate, onClose, stores = [] }) {
   const [name, setName] = useState('');
+  const [storeId, setStoreId] = useState('');
 
   function handleCreate() {
     if (!name.trim()) return;
-    onCreate(name.trim());
+    onCreate(name.trim(), storeId || null);
     onClose();
+  }
+
+  // Picking a store names the list after it, unless the user already typed one.
+  function handleStoreChange(id) {
+    setStoreId(id);
+    const store = stores.find(s => s.id === id);
+    if (store && !name.trim()) setName(store.name);
   }
 
   return (
@@ -135,6 +143,16 @@ function NewListDialog({ onCreate, onClose }) {
               value={name} onChange={e => setName(e.target.value)} autoFocus
               onKeyDown={e => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') onClose(); }} />
           </div>
+          {stores.length > 0 && (
+            <div className="shop-field">
+              <label className="shop-field-label">Store (optional)</label>
+              <select className="form-input" value={storeId}
+                onChange={e => handleStoreChange(e.target.value)}>
+                <option value="">No store — a plain list</option>
+                {stores.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
+              </select>
+            </div>
+          )}
         </div>
         <div className="shop-dialog-actions">
           <button className="btn-ghost" onClick={onClose}>Cancel</button>

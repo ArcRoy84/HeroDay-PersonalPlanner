@@ -10,6 +10,7 @@ import { migrateFromLocalStorage } from './migrate';
 import { newId, now } from './ids';
 import { DEFAULT_BUDGET_CATEGORIES } from '../data/budgetCategories.js';
 import { CATEGORIES as SHOPPING_CATEGORIES } from '../data/shoppingCategories.js';
+import { ensureDefaultStoreCategories } from './storeOps';
 import type { BudgetCategory, Category, Task } from './types';
 
 const DEFAULT_CATEGORIES: Omit<Category, 'updatedAt' | 'deletedAt'>[] = [
@@ -63,7 +64,7 @@ async function seedIfEmpty(): Promise<void> {
 
   if (await db.shoppingLists.count() === 0) {
     await db.shoppingLists.put({
-      id: 'default', name: 'Grocery', budget: null,
+      id: 'default', name: 'Grocery', budget: null, storeId: null,
       createdAt: timestamp, updatedAt: timestamp, deletedAt: null,
     });
   }
@@ -98,6 +99,7 @@ export function bootDatabase(): Promise<void> {
     await db.open();
     await migrateFromLocalStorage(db);
     await seedIfEmpty();
+    await ensureDefaultStoreCategories();
   })();
   return bootPromise;
 }
