@@ -80,6 +80,21 @@ export async function waitFor(check, message = 'condition', timeout = 3000) {
   throw new Error(`Timed out waiting for ${message}${lastError ? ` (${lastError.message})` : ''}`);
 }
 
+/**
+ * Like `waitFor`, for a check that is itself async — typically a database read.
+ * (Passing an async function to `waitFor` would be truthy immediately, because a
+ * Promise is truthy, and so would never actually wait.)
+ */
+export async function waitForAsync(check, message = 'condition', timeout = 3000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const result = await check();
+    if (result) return result;
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+  }
+  throw new Error(`Timed out waiting for ${message}`);
+}
+
 /** First element of `selector` whose text includes `text`. */
 export function byText(root, selector, text) {
   return [...root.querySelectorAll(selector)].find(el => el.textContent.includes(text)) ?? null;

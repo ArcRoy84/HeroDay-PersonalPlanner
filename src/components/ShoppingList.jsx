@@ -17,10 +17,12 @@ import {
 } from './shopping/dialogs.jsx';
 import { ManageCategoriesModal, ManageUnitsModal } from './shopping/managers.jsx';
 import { RecipesView } from './shopping/recipes.jsx';
-import { AllItemsView } from './shopping/views.jsx';
+import { ItemsView } from './shopping/ItemsView.jsx';
 import { StoresView, StoreIcon } from './shopping/stores.jsx';
 import { StoreFormModal } from './shopping/StoreFormModal.jsx';
 import { OTHER_STORE_CATEGORY_ID } from '../data/storeCategories.js';
+import { computeInsights } from '../analytics/insights';
+import { toLocalDate, parseDateOnly } from '../utils/products';
 
 export default function ShoppingList({
   lists, history, recipes, setRecipes, onAddToPlanner,
@@ -36,6 +38,10 @@ export default function ShoppingList({
   stores, storeCategories,
   createStore, updateStore, removeStore,
   saveStoreCategories, linkListToStore, createListForStore,
+  // The product catalog and purchase log — see db/productOps.ts, db/purchaseOps.ts.
+  products, purchases,
+  createProduct, updateProduct, removeProduct, addProductToList,
+  logPastPurchase, confirmPurchase, updatePurchase, removePurchase,
 }) {
   const [activeSection,  setActiveSection]  = useState('lists');
   const [activeId,       setActiveId]       = useState(() => lists[0]?.id || null);
@@ -67,6 +73,43 @@ export default function ShoppingList({
   const catMap = useMemo(
     () => Object.fromEntries(categories.map(c => [c.id, c])),
     [categories]
+  );
+
+  // ── Items: analytics and the inline price editor ─────────────────────────
+  // What is waiting, unticked, on some list right now — restock nudges skip these.
+  const onListProductIds = useMemo(
+    () => new Set(lists.flatMap(l => l.items).filter(i => !i.checked && i.productId).map(i => i.productId)),
+    [lists],
+  );
+
+  // A ticked item's purchase, so its card can ask "what did you pay?".
+  const purchaseByItem = useMemo(
+    () => new Map(purchases.filter(p => p.itemId).map(p => [p.itemId, p])),
+    [purchases],
+  );
+
+  // Only worked out while the Items section is open. It is given today's date as
+  // "now", so it is recomputed when the day changes and "3 days ago" cannot go
+  // stale in an app left open past midnight.
+  const today = toLocalDate();
+  const insights = useMemo(
+    () => (activeSection === 'items'
+      ? computeInsights({
+        products, purchases, pantry: pantryItems, onListProductIds, now: parseDateOnly(today),
+      })
+      : null),
+    [activeSection, products, purchases, pantryItems, onListProductIds, today],
+  );
+
+  const catalogActions = useMemo(() => ({
+    createProduct, updateProduct, removeProduct, addProductToList,
+    logPastPurchase, confirmPurchase, updatePurchase, removePurchase,
+  }), [createProduct, updateProduct, removeProduct, addProductToList,
+    logPastPurchase, confirmPurchase, updatePurchase, removePurchase]);
+
+  const storeMap = useMemo(
+    () => Object.fromEntries(stores.map(s => [s.id, s])),
+    [stores],
   );
 
   // Barcodes are recorded on purchase-history entries (see toggleItem below),
@@ -185,11 +228,6 @@ export default function ShoppingList({
     if (!activeList) return;
     clearCheckedRow(activeList.id);
   };
-
-  const storeMap = useMemo(
-    () => Object.fromEntries(stores.map(s => [s.id, s])),
-    [stores],
-  );
 
   const openList = (listId) => {
     setActiveId(listId);
@@ -411,6 +449,7 @@ export default function ShoppingList({
         ) : (
           grouped.map(({ cat, items }) => (
             <CategorySection key={cat.id} cat={cat} items={items}
+              purchaseByItem={purchaseByItem} stores={stores} onConfirmPrice={confirmPurchase}
               onToggle={toggleItem}
               onUpdate={updateItem}
               onEdit={item => setEditingItem(item)}
@@ -478,7 +517,13 @@ export default function ShoppingList({
         {activeSection === 'budget' && (
           <BudgetView lists={lists} />
         )}
-        {activeSection === 'items'  && <AllItemsView lists={lists} catMap={catMap} categories={categories} />}
+        {activeSection === 'items' && insights && (
+          <ItemsView
+            products={products} purchases={purchases} insights={insights}
+            categories={categories} catMap={catMap}
+            stores={stores} storeMap={storeMap} lists={lists} activeListId={activeList?.id ?? null}
+            onListProductIds={onListProductIds} actions={catalogActions} />
+        )}
         {activeSection === 'stores' && (
           <StoresView
             stores={stores} storeCategories={storeCategories} lists={lists}

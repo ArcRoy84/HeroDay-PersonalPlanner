@@ -70,7 +70,7 @@
   gap: 10px;
   padding: 14px;
   border-radius: 12px;
-  background: var(--surface);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-top: 3px solid var(--store-accent);
   transition: border-color .15s, box-shadow .15s;
@@ -102,13 +102,13 @@
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
   overflow-wrap: anywhere;
 }
 
 .store-card-category {
   font-size: 11.5px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .store-card-actions { display: flex; gap: 2px; flex-shrink: 0; }
@@ -120,7 +120,7 @@
   font-style: normal;
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .store-card-map {
@@ -141,15 +141,15 @@
   margin: 0;
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
-.store-card-line strong { color: var(--text); font-weight: 600; margin-right: 4px; }
+.store-card-line strong { color: var(--text-primary); font-weight: 600; margin-right: 4px; }
 
 .store-card-notes {
   padding: 8px 10px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--text) 5%, transparent);
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -164,7 +164,7 @@
   border-top: 1px solid var(--border);
 }
 
-.store-card-nolists { font-size: 12px; color: var(--text-muted); }
+.store-card-nolists { font-size: 12px; color: var(--text-secondary); }
 
 .store-list-chip {
   display: inline-flex;
@@ -174,7 +174,7 @@
   border-radius: 99px;
   border: 1px solid var(--border);
   background: transparent;
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 12px;
   cursor: pointer;
   transition: border-color .15s, color .15s;
@@ -182,7 +182,7 @@
 
 .store-list-chip:hover { border-color: var(--accent); color: var(--accent); }
 .store-list-chip-name { font-weight: 600; }
-.store-list-chip-meta { font-size: 11px; color: var(--text-muted); }
+.store-list-chip-meta { font-size: 11px; color: var(--text-secondary); }
 
 /* Lists that are not linked to a store */
 .store-unlinked { margin-top: 8px; }
@@ -193,7 +193,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .store-unlinked-open {
@@ -229,7 +229,7 @@
   flex-shrink: 0;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--bg-surface);
 }
 
 .store-category-row { display: flex; gap: 8px; align-items: center; }
@@ -246,7 +246,7 @@
   min-width: 0;
   border-radius: 8px;
   border: 1px solid transparent;
-  background: var(--surface);
+  background: var(--bg-surface);
   font-size: 17px;
   line-height: 1;
   cursor: pointer;
@@ -274,7 +274,7 @@
   margin: 4px 0 0;
   font-size: 11px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .store-row { display: grid; gap: 10px; }
@@ -286,7 +286,7 @@
   margin: 6px 0 0;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .store-msg--error { color: #ef4444; }
@@ -309,8 +309,8 @@
   text-align: left;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font: inherit;
   cursor: pointer;
   transition: border-color .12s;
@@ -318,7 +318,7 @@
 
 .store-match:hover { border-color: var(--accent); }
 .store-match-label { font-size: 12.5px; line-height: 1.4; overflow-wrap: anywhere; }
-.store-match-coords { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.store-match-coords { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
 .store-notes { resize: vertical; min-height: 64px; font-family: inherit; }
 
@@ -329,14 +329,14 @@
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--bg-surface);
   font-size: 13px;
-  color: var(--text);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
 .store-check input { margin-top: 2px; accent-color: var(--accent); }
-.store-check-sub { display: block; margin-top: 2px; font-size: 11.5px; color: var(--text-muted); }
+.store-check-sub { display: block; margin-top: 2px; font-size: 11.5px; color: var(--text-secondary); }
 
 @media (max-width: 520px) {
   .store-grid { grid-template-columns: 1fr; }

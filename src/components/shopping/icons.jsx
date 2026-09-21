@@ -34,7 +34,7 @@ const NAV = [
   { id: 'lists',   label: 'My List',          Icon: IconNavCart   },
   { id: 'recipes', label: 'Recipes',          Icon: IconNavBook   },
   { id: 'budget',  label: 'Monthly Budget',   Icon: IconNavWallet },
-  { id: 'items',   label: 'All Items',        Icon: IconNavBox    },
+  { id: 'items',   label: 'Items',            Icon: IconNavBox    },
   { id: 'stores',  label: 'Stores',           Icon: IconNavStore  },
 ];
 

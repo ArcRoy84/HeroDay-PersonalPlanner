@@ -1,0 +1,524 @@
+/* Items: insight tiles, product cards, charts, the detail modal, and the inline price editor.
+
+   Colour rules used throughout (see the data-viz notes in the components):
+   - Marks and de-emphasised ink use --text-secondary, never --text-muted, which
+     is too dim on the default dark and light themes.
+   - Status colours (--priority-*) only reinforce a glyph and a label; they are
+     never the sole carrier of meaning, and text stays in ink.
+   - Text never wears the accent; the accent is for marks. */
+
+/* ── Small utilities ───────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.pcard-main:focus-visible,
+.irow:focus-visible,
+.ichip:focus-visible,
+.seg-btn:focus-visible,
+.pchart:focus-visible,
+.link-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Product thumbnail ─────────────────────────────────────── */
+.pthumb {
+  --thumb-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--thumb-size);
+  height: var(--thumb-size);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--thumb-accent, var(--accent)) 16%, var(--bg-elevated));
+  font-size: calc(var(--thumb-size) * 0.52);
+  line-height: 1;
+  overflow: hidden;
+}
+
+.pthumb--photo { background: #fff; }
+.pthumb--photo img { width: 100%; height: 100%; object-fit: contain; }
+
+/* ── Trend badge, opportunity chip, store badges ───────────── */
+.tbadge,
+.ochip {
+  --tone: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tbadge-glyph { color: var(--tone); font-weight: 800; }
+.tbadge--good, .ochip--good { --tone: var(--priority-low); }
+.tbadge--bad,  .ochip--bad  { --tone: var(--priority-high); }
+.tbadge--flat, .ochip--flat { --tone: var(--text-secondary); }
+
+.sbadges { display: inline-flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+
+.sbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 140px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 99px;
+  border: 1px solid var(--border-med);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
+.sbadge-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbadge-last { color: var(--accent); font-weight: 800; }
+
+/* ── Meter (restock progress) ──────────────────────────────── */
+.meter {
+  --meter-color: var(--accent);
+  display: block;
+  height: 6px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--meter-color) 18%, transparent);
+  overflow: hidden;
+}
+
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--meter-color);
+  transition: width .25s ease;
+}
+
+.meter--soon    { --meter-color: var(--priority-medium); }
+.meter--due,
+.meter--overdue { --meter-color: var(--priority-high); }
+.meter--listed,
+.meter--unknown { --meter-color: var(--text-secondary); }
+
+.restock { display: flex; flex-direction: column; gap: 5px; }
+.restock-text { font-size: 12px; color: var(--text-secondary); }
+.restock--due .restock-text,
+.restock--overdue .restock-text { color: var(--text-primary); font-weight: 600; }
+
+/* ── Sparkline and price chart ─────────────────────────────── */
+.spark { display: block; flex-shrink: 0; }
+.spark-line { stroke: var(--text-secondary); }
+.spark-ring { fill: var(--bg-surface); }
+.spark-dot  { fill: var(--accent); }
+
+.pchart { position: relative; border-radius: 10px; }
+.pchart-svg { display: block; width: 100%; height: auto; }
+.pchart-grid { stroke: var(--border-med); stroke-width: 1; }
+.pchart-axis { fill: var(--text-secondary); font-size: 11px; }
+.pchart-line { stroke: var(--accent); }
+.pchart-cross { stroke: var(--text-secondary); stroke-width: 1; }
+.pchart-end { fill: var(--text-primary); font-size: 12px; font-weight: 700; }
+
+.pchart-tip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-med);
+  font-size: 12px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.pchart-tip strong { color: var(--text-primary); font-size: 13px; }
+.pchart-empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
+
+/* ── Horizontal bars (single series, single hue) ───────────── */
+.bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+
+.bars-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.bars-label { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; color: var(--text-primary); }
+.bars-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars-emoji { font-size: 14px; line-height: 1; }
+.bars-track { display: block; height: 10px; }
+
+.bars-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  /* Square at the baseline, rounded at the data end. */
+  border-radius: 0 4px 4px 0;
+}
+
+.bars-value { font-size: 12.5px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* ── Insight tiles ─────────────────────────────────────────── */
+.itiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+  margin: 4px 0 20px;
+}
+
+.itile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+.itile-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.itile-sub { margin: 6px 0 0; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.itile-guide { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-secondary); }
+.itile-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
+.itile-note strong { color: var(--text-primary); }
+
+/* Exactly one hero figure per view: this month's spend. Proportional figures,
+   not tabular, because a large standalone number looks loose with equal-width digits. */
+.hero-figure {
+  margin: 2px 0 0;
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.stat-value {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.stat-of { font-size: 1rem; font-weight: 500; color: var(--text-secondary); }
+
+.irows { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.irow-wrap { display: flex; align-items: center; gap: 6px; }
+
+.irow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.irow:hover { background: var(--bg-hover); }
+.irow--static { cursor: default; }
+.irow--static:hover { background: transparent; }
+
+.irow-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.irow-name { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.irow-sub { font-size: 11.5px; color: var(--text-secondary); }
+.irow-sub--alert { color: var(--text-primary); font-weight: 600; }
+.irow-aside { font-size: 12.5px; font-weight: 600; color: var(--text-primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.irow-btn { flex-shrink: 0; }
+
+.seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--bg-hover); width: fit-content; }
+
+.seg-btn {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seg-btn[aria-pressed="true"] { background: var(--bg-elevated); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
+
+/* ── Filters ───────────────────────────────────────────────── */
+.ifilters {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ichips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 14px; }
+
+.ichip {
+  padding: 5px 12px;
+  border-radius: 99px;
+  border: 1px solid var(--border-med);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.ichip:hover { border-color: var(--accent); color: var(--text-primary); }
+
+.ichip[aria-pressed="true"] {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ichips-count { margin-left: auto; font-size: 12px; color: var(--text-secondary); }
+
+.isample {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--border-med);
+  background: var(--accent-bg);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* ── Product card ──────────────────────────────────────────── */
+.pgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+  padding-bottom: 20px;
+}
+
+.pcard {
+  --card-accent: var(--accent);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--card-accent);
+  transition: border-color .15s;
+}
+
+.pcard:hover { border-color: var(--card-accent); }
+
+.pcard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  padding: 14px 14px 10px;
+  border: 0;
+  border-radius: 12px 12px 0 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pcard-head { display: flex; align-items: center; gap: 10px; }
+.pcard-titles { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.pcard-name { font-size: 15px; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; }
+.pcard-sub { font-size: 12px; color: var(--text-secondary); }
+
+.pcard-price-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pcard-price { font-size: 1.6rem; font-weight: 700; line-height: 1.1; color: var(--text-primary); }
+.pcard-price--none { font-size: 1rem; font-weight: 500; color: var(--text-secondary); }
+.pcard-when { font-size: 12.5px; color: var(--text-secondary); }
+
+.pcard-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.pcard-foot-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-top: auto; }
+.pcard-facts { font-size: 12px; line-height: 1.4; color: var(--text-secondary); }
+
+.pcard-actions { padding: 8px 14px 12px; border-top: 1px solid var(--border); display: flex; }
+
+/* ── Product modal ─────────────────────────────────────────── */
+.shop-dialog--xl { max-width: 780px; max-height: 92vh; }
+
+.pmodal-body { display: flex; flex-direction: column; gap: 20px; }
+
+.pmodal-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.pmodal-titles { flex: 1; min-width: 200px; }
+.pmodal-name { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; }
+.pmodal-sub { margin: 4px 0 8px; font-size: 13px; color: var(--text-secondary); }
+.pmodal-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.pmodal-actions { display: flex; gap: 6px; }
+.pmodal-addrow { display: flex; gap: 8px; }
+.pmodal-addrow .form-input { flex: 1; min-width: 0; }
+
+.pstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+
+.pstat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.pstat-label { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); }
+.pstat-value { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; }
+.pstat-sub { font-size: 12px; line-height: 1.4; color: var(--text-secondary); }
+
+.pmodal-section { display: flex; flex-direction: column; gap: 10px; overflow-x: auto; }
+.pmodal-h { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); }
+.pmodal-notes { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Tables: a table is the accessible twin of the chart, so it stays readable. */
+.ptable { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.ptable th {
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-med);
+}
+
+.ptable td { padding: 8px; border-bottom: 1px solid var(--border); color: var(--text-primary); vertical-align: middle; }
+
+/* Numbers align in columns, which is the one place tabular figures belong. */
+.ptable .ptable-num { text-align: right; font-variant-numeric: tabular-nums; }
+.ptable-unit { display: block; font-size: 11px; color: var(--text-secondary); }
+.ptable-store { display: inline-flex; align-items: center; gap: 6px; }
+.ptable-none { color: var(--text-secondary); }
+.ptable-actions { text-align: right; white-space: nowrap; }
+.ptable-actions .btn-ghost, .ptable-actions .sic-act { vertical-align: middle; }
+.ptable-ask { margin-right: 6px; font-size: 12px; color: var(--text-secondary); }
+.ptable-danger { color: var(--priority-high); }
+
+.ptag {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--priority-low) 16%, transparent);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pstatus { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.pstatus--warn { color: var(--text-primary); }
+.pstatus--warn::before { content: '● '; color: var(--priority-medium); }
+.pstatus--ok::before { content: '✓ '; color: var(--priority-low); }
+
+.prow-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.prow-form label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+.prow-form .form-input { min-width: 0; }
+.prow-form-actions { display: flex; gap: 6px; margin-left: auto; }
+.plog { padding: 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-surface); }
+.ptable-edit td { background: var(--bg-hover); }
+
+/* ── Product form extras ───────────────────────────────────── */
+.store-check--stack { flex-direction: column; align-items: stretch; gap: 8px; cursor: default; }
+.pf-check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.pf-check-row input { accent-color: var(--accent); }
+.pf-list-select { max-width: 260px; }
+
+/* ── Inline price editor on a ticked list item ─────────────── */
+.sic-paid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.sic-paid-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.sic-paid-input { width: 84px; padding: 5px 8px; font-size: 13px; }
+.sic-paid-store { max-width: 150px; padding: 5px 8px; font-size: 12px; }
+
+.sic-paid-ok {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.sic-paid-ok:disabled { opacity: .55; cursor: default; }
+.sic-paid-error { flex-basis: 100%; font-size: 12px; color: var(--priority-high); }
+.sic-paid-done { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+
+/* ── Small screens ─────────────────────────────────────────── */
+@media (max-width: 520px) {
+  .pgrid { grid-template-columns: 1fr; }
+  .itiles { grid-template-columns: 1fr; }
+  .ifilters { grid-template-columns: 1fr 1fr; }
+  .ifilters-search { grid-column: 1 / -1; }
+  .hero-figure { font-size: 2.6rem; }
+  .pmodal-actions { width: 100%; }
+  .prow-form-actions { margin-left: 0; width: 100%; }
+}
+
+/* Motion is decoration here; honour the request to reduce it. */
+@media (prefers-reduced-motion: reduce) {
+  .meter-fill { transition: none; }
+}
