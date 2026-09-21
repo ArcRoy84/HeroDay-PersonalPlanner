@@ -14,15 +14,18 @@
 import { db } from './schema';
 import { now } from './ids';
 import { ensureDefaultStoreCategories } from './storeOps';
+import { reconcileCatalog } from './catalog';
 
 /**
  * Bumped when the file layout changes in a way importers must notice.
  *
- * 2 — added `stores` and `storeCategories`. An older build refuses a v2 file
- * outright (see parseBackup) rather than importing it and silently dropping the
- * stores it does not know about.
+ * 2 — added `stores` and `storeCategories`.
+ * 3 — added `products` and `purchases`.
+ *
+ * An older build refuses a newer file outright (see parseBackup) rather than
+ * importing it and silently dropping the tables it does not know about.
  */
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
 /**
  * The backup version in which a table first appeared; anything not listed has
@@ -34,6 +37,8 @@ export const BACKUP_VERSION = 2;
 const TABLE_SINCE: Partial<Record<string, number>> = {
   stores: 2,
   storeCategories: 2,
+  products: 3,
+  purchases: 3,
 };
 
 /** Tables included in a backup, in dependency order (lists before items). */
@@ -43,6 +48,7 @@ const EXPORTED_TABLES = [
   'shoppingLists', 'shoppingItems', 'shoppingHistory', 'shoppingRecipes',
   'shoppingCategories', 'pantry',
   'stores', 'storeCategories',
+  'products', 'purchases',
   'budgetCategories', 'budgetIncome', 'budgetBills', 'budgetExpenses',
   'settings',
 ] as const;
@@ -185,6 +191,10 @@ export async function importData(
   // replace over a database that had none). Put the defaults back so the
   // Stores tab is usable without a reload.
   await ensureDefaultStoreCategories();
+
+  // A file from before the catalog has history but no products: build them from
+  // it. Any file can leave list items unlinked, so link those either way.
+  await reconcileCatalog(db, { seedLegacy: backup.version < 3 });
 
   return { imported, total };
 }

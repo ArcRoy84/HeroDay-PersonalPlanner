@@ -170,7 +170,7 @@ describe('removeStore', () => {
     const { storeId, listId } = await createStore(store(), { createList: true });
     await db.shoppingItems.put({
       id: 'i1', listId: listId!, name: 'Milk', qty: 1, unit: '', category: 'dairy',
-      storeLocation: '', note: '', estimatedPrice: null, barcode: '', checked: false,
+      storeLocation: '', note: '', estimatedPrice: null, barcode: '', productId: null, checked: false,
       addedAt: ts, updatedAt: ts, deletedAt: null,
     });
 

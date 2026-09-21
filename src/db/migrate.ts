@@ -125,6 +125,8 @@ export async function migrateFromLocalStorage(db: HeroDayDB): Promise<MigrationR
         note: typeof rawItem.note === 'string' ? rawItem.note : '',
         estimatedPrice: typeof rawItem.estimatedPrice === 'number' ? rawItem.estimatedPrice : null,
         barcode: typeof rawItem.barcode === 'string' ? rawItem.barcode : '',
+        // Linked to a product by the catalog reconcile that runs after migration.
+        productId: null,
         checked: rawItem.checked === true,
         addedAt: typeof rawItem.addedAt === 'string' ? rawItem.addedAt : ts,
       }, ts));

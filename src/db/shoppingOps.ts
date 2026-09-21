@@ -16,7 +16,10 @@
 import { db } from './schema';
 import { newId, now } from './ids';
 import { isLive } from './repo';
-import type { ShoppingItem, ShoppingList, PantryItem } from './types';
+import { resolveProduct } from './catalog';
+import { toLocalDate, nameKey } from '../utils/products';
+import { lastConfirmedUnitPrice, roundMoney } from '../analytics/price';
+import type { ShoppingItem, ShoppingList, PantryItem, Purchase } from './types';
 
 /** Purchase history is a frequency cache, capped so it cannot grow forever. */
 const HISTORY_LIMIT = 60;
@@ -31,6 +34,11 @@ export interface NewItemFields {
   note?: string;
   estimatedPrice?: number | null;
   barcode?: string;
+  /**
+   * Add an instance of this exact product. Without it the product is found (or
+   * created) from the name, which cannot tell two brands of "Milk" apart.
+   */
+  productId?: string;
 }
 
 const round2 = (n: number): number => Number(n.toFixed(2));
@@ -48,10 +56,16 @@ export async function addItemToList(
   const name = fields.name.trim();
   if (!name || !listId) return;
 
-  await db.transaction('rw', db.shoppingItems, async () => {
+  await db.transaction('rw', db.shoppingItems, db.products, async () => {
     const existing = (await db.shoppingItems.where('listId').equals(listId).toArray())
       .filter(isLive);
-    const duplicate = existing.find(i => sameName(i.name, name) && !i.checked);
+    // Merge into an unticked row for the same thing. When the caller names an
+    // exact product, "the same thing" is that product: matching on the name alone
+    // would fold a different brand of "Milk" into the wrong row and never add the
+    // one that was asked for.
+    const duplicate = existing.find(i => !i.checked && (
+      fields.productId ? i.productId === fields.productId : sameName(i.name, name)
+    ));
     const timestamp = now();
     const qty = fields.qty ?? 1;
 
@@ -65,6 +79,15 @@ export async function addItemToList(
       return;
     }
 
+    // Every list item is an instance of a catalog product, so the Items section
+    // is never missing something that is on a list.
+    const named = fields.productId ? await db.products.get(fields.productId) : undefined;
+    const product = named && isLive(named)
+      ? named
+      : await resolveProduct(db.products, {
+        name, category: fields.category, barcode: fields.barcode,
+      }, timestamp);
+
     await db.shoppingItems.put({
       id: newId(),
       listId,
@@ -76,6 +99,7 @@ export async function addItemToList(
       note: fields.note ?? '',
       estimatedPrice: fields.estimatedPrice ?? null,
       barcode: fields.barcode ?? '',
+      productId: product.id,
       checked: false,
       addedAt: timestamp,
       updatedAt: timestamp,
@@ -88,7 +112,28 @@ export async function updateItem(
   itemId: string,
   updates: Partial<ShoppingItem>,
 ): Promise<void> {
-  await db.shoppingItems.update(itemId, { ...updates, updatedAt: now() });
+  await db.transaction('rw', db.shoppingItems, db.products, async () => {
+    const item = await db.shoppingItems.get(itemId);
+    if (!item) return;
+
+    const changes: Partial<ShoppingItem> = { ...updates, updatedAt: now() };
+
+    // Renaming an item, or giving it a different barcode, can mean it is now a
+    // different product. Re-resolve so its history follows what it actually is.
+    const renamed = updates.name !== undefined && nameKey(updates.name) !== nameKey(item.name);
+    const newBarcode = updates.barcode?.trim();
+    const rebarcoded = !!newBarcode && newBarcode !== item.barcode.trim();
+    if (renamed || rebarcoded) {
+      const product = await resolveProduct(db.products, {
+        name: updates.name ?? item.name,
+        category: updates.category ?? item.category,
+        barcode: updates.barcode ?? item.barcode,
+      });
+      changes.productId = product.id;
+    }
+
+    await db.shoppingItems.update(itemId, changes);
+  });
 }
 
 export async function removeItem(itemId: string): Promise<void> {
@@ -189,18 +234,82 @@ async function restockPantryWithin(item: ShoppingItem, timestamp: string): Promi
  * tables move together in one transaction.
  */
 export async function toggleItemChecked(itemId: string): Promise<void> {
-  await db.transaction('rw', db.shoppingItems, db.shoppingHistory, db.pantry, async () => {
-    const item = await db.shoppingItems.get(itemId);
-    if (!item || !isLive(item)) return;
+  await db.transaction(
+    'rw',
+    [db.shoppingItems, db.shoppingHistory, db.pantry, db.shoppingLists, db.products, db.purchases],
+    async () => {
+      const item = await db.shoppingItems.get(itemId);
+      if (!item || !isLive(item)) return;
 
-    const timestamp = now();
-    const nowChecked = !item.checked;
-    await db.shoppingItems.update(itemId, { checked: nowChecked, updatedAt: timestamp });
+      const timestamp = now();
+      const nowChecked = !item.checked;
+      await db.shoppingItems.update(itemId, { checked: nowChecked, updatedAt: timestamp });
 
-    if (!nowChecked) return;
-    await recordPurchaseWithin(item, timestamp);
-    await restockPantryWithin(item, timestamp);
-  });
+      if (!nowChecked) {
+        // A mis-tick must not leave a purchase behind to skew the analytics.
+        await voidPurchasesForItem(itemId, timestamp);
+        return;
+      }
+      await recordPurchaseWithin(item, timestamp);
+      await restockPantryWithin(item, timestamp);
+      await recordItemPurchase(item, timestamp);
+    },
+  );
+}
+
+/**
+ * Records the purchase a tick represents.
+ *
+ * The price is *pre-filled*, not known: the item's own estimate, else the last
+ * price confirmed for this product. It is saved unconfirmed, so the card can
+ * offer it for a one-tap correction, and the analytics ignore it until then.
+ * The store comes from the list, when the list has one.
+ */
+async function recordItemPurchase(item: ShoppingItem, timestamp: string): Promise<void> {
+  const list = await db.shoppingLists.get(item.listId);
+
+  const linked = item.productId ? await db.products.get(item.productId) : undefined;
+  const product = linked && isLive(linked)
+    ? linked
+    : await resolveProduct(db.products, {
+      name: item.name, category: item.category, barcode: item.barcode,
+    }, timestamp);
+  if (product.id !== item.productId) {
+    await db.shoppingItems.update(item.id, { productId: product.id });
+  }
+
+  const qty = item.qty > 0 ? item.qty : 1;
+  let price = item.estimatedPrice;
+  if (price === null) {
+    const history = await db.purchases.where('productId').equals(product.id).toArray();
+    const last = lastConfirmedUnitPrice(history);
+    if (last !== null) price = roundMoney(last * qty);
+  }
+
+  const purchase: Purchase = {
+    id: newId(),
+    productId: product.id,
+    itemId: item.id,
+    listId: item.listId,
+    storeId: list?.storeId ?? null,
+    date: toLocalDate(),
+    qty,
+    price,
+    confirmed: false,
+    source: 'tick',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    deletedAt: null,
+  };
+  await db.purchases.put(purchase);
+}
+
+/** Voids the live purchases a list item's tick created. */
+async function voidPurchasesForItem(itemId: string, timestamp: string): Promise<void> {
+  const made = (await db.purchases.where('itemId').equals(itemId).toArray()).filter(isLive);
+  await db.purchases.bulkPut(
+    made.map(p => ({ ...p, deletedAt: timestamp, updatedAt: timestamp })),
+  );
 }
 
 /* ── Lists ──────────────────────────────────────────────────────────────── */

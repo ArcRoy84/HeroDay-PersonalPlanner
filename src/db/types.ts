@@ -164,6 +164,8 @@ export interface Store extends Auditable {
   hours: string;
   notes: string;
   createdAt: Timestamp;
+  /** Set on sample data only, so "remove sample data" can find exactly it. */
+  demo?: boolean;
 }
 
 /** Editable type of store: Supermarket, Bakery, Hardware Store… */
@@ -189,8 +191,93 @@ export interface ShoppingItem extends Auditable {
   note: string;
   estimatedPrice: number | null;
   barcode: string;
+  /**
+   * The catalog product this row is an instance of. `null` until linked; rows
+   * written before the catalog existed have no value at all, so read it as
+   * `item.productId ?? null`.
+   */
+  productId: string | null;
   checked: boolean;
   addedAt: Timestamp;
+}
+
+/* ── Catalog ────────────────────────────────────────────────────────────── */
+
+/**
+ * A thing you buy, independent of any list. List items are *instances* of a
+ * product; the Items section is a view of these, with analytics computed from
+ * the purchase log.
+ */
+export interface Product extends Auditable {
+  id: string;
+  name: string;
+  /**
+   * `name` normalised (trimmed, lower-cased, whitespace collapsed). Kept as a
+   * column so list items can be matched to products by an index lookup.
+   */
+  nameKey: string;
+  /** A shopping category id — the same ids list items use. */
+  category: string;
+  brand: string;
+  /** Free text: "1 gal", "500 g", "6-pack". Distinguishes similar products. */
+  packageSize: string;
+  barcode: string;
+  /**
+   * Optional photo as a resized JPEG data URL — a string, not a Blob, because
+   * the JSON backup would turn a Blob into `{}`.
+   */
+  photo: string | null;
+  notes: string;
+  /**
+   * How many times this was bought before purchase tracking began. Carried over
+   * from the old per-name history, which recorded a count and a last date but
+   * no dates for the earlier ones, so they cannot be turned into purchases.
+   */
+  priorPurchases: number;
+  createdAt: Timestamp;
+  demo?: boolean;
+}
+
+/** Where a purchase record came from. */
+export type PurchaseSource =
+  /** Ticking an item off a list. */
+  | 'tick'
+  /** Logged by hand, e.g. from a receipt. */
+  | 'manual'
+  /** Carried over from the pre-catalog history: a date, but no price or store. */
+  | 'legacy';
+
+/**
+ * One purchase of a product. The log is append-only in spirit: editing a price
+ * or store corrects a record, and a mistaken tick voids it.
+ */
+export interface Purchase extends Auditable {
+  id: string;
+  productId: string;
+  /** The list item whose tick created this, so un-ticking can void it. */
+  itemId: string | null;
+  listId: string | null;
+  /** Taken from the list's store when ticked; `null` when unknown. */
+  storeId: string | null;
+  /** Local calendar day of the purchase. */
+  date: DateOnly;
+  qty: number;
+  /**
+   * What was paid for the whole line. Unit price is `price / qty`, which is
+   * what trends compare, so buying two instead of one does not look like a
+   * price change. `null` when no price is known.
+   */
+  price: number | null;
+  /**
+   * True once the user has entered or confirmed the price. A price that was
+   * merely pre-filled from an estimate is not confirmed, and analytics leave it
+   * out — otherwise ignoring the prompt would fill the history with echoes of
+   * the last price and hide real changes.
+   */
+  confirmed: boolean;
+  source: PurchaseSource;
+  createdAt: Timestamp;
+  demo?: boolean;
 }
 
 /**

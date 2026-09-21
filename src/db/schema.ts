@@ -9,11 +9,12 @@
  * sync with the source of truth.
  */
 import Dexie, { type EntityTable } from 'dexie';
+import { seedCatalogFromHistory, linkItemsToProducts, type CatalogTables } from './catalog';
 import type {
   Task, Category, Note,
   LearningCourse, LearningGoal,
   ShoppingList, ShoppingItem, ShoppingHistoryEntry, ShoppingRecipe,
-  ShoppingCategory, PantryItem, Store, StoreCategory,
+  ShoppingCategory, PantryItem, Store, StoreCategory, Product, Purchase,
   BudgetCategory, BudgetIncome, BudgetBill, BudgetExpense,
   SettingRow, MetaRow,
 } from './types';
@@ -67,6 +68,8 @@ export class HeroDayDB extends Dexie {
   pantry!: EntityTable<PantryItem, 'id'>;
   stores!: EntityTable<Store, 'id'>;
   storeCategories!: EntityTable<StoreCategory, 'id'>;
+  products!: EntityTable<Product, 'id'>;
+  purchases!: EntityTable<Purchase, 'id'>;
 
   budgetCategories!: EntityTable<BudgetCategory, 'id'>;
   budgetIncome!: EntityTable<BudgetIncome, 'id'>;
@@ -96,6 +99,33 @@ export class HeroDayDB extends Dexie {
           if (list.storeId === undefined) list.storeId = null;
         }),
       );
+
+    // Version 3 adds the product catalog and the purchase log. `itemId`,
+    // `storeId` and `productId` on rows are nullable and so only sparsely
+    // indexed, which is fine: they are looked up for a known key, never scanned.
+    this.version(3)
+      .stores({
+        products: 'id, nameKey, barcode, category',
+        purchases: 'id, productId, date, storeId, itemId, [productId+date]',
+      })
+      .upgrade(async tx => {
+        // Items gain an explicit "no product yet" before being linked.
+        await tx.table('shoppingItems').toCollection().modify(item => {
+          if (item.productId === undefined) item.productId = null;
+        });
+
+        // Turn the old per-name history into products, then link every list
+        // item to one. Inside the upgrade transaction, so it lands with the
+        // schema change or not at all.
+        const tables: CatalogTables = {
+          history: tx.table('shoppingHistory'),
+          items: tx.table('shoppingItems'),
+          products: tx.table('products'),
+          purchases: tx.table('purchases'),
+        };
+        await seedCatalogFromHistory(tables);
+        await linkItemsToProducts(tables);
+      });
   }
 }
 

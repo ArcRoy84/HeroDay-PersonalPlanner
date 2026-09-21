@@ -24,6 +24,9 @@ export function isSafeLogo(value: unknown): value is string {
   return typeof value === 'string' && value.length <= MAX_LOGO_CHARS && SAFE_LOGO.test(value);
 }
 
+/** Same rule, named for what it guards when the image is a product photo. */
+export const isSafeImage = isSafeLogo;
+
 export interface AddressFields {
   address: string;
   city: string;

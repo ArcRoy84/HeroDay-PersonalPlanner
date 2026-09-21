@@ -11,6 +11,7 @@ import { newId, now } from './ids';
 import { DEFAULT_BUDGET_CATEGORIES } from '../data/budgetCategories.js';
 import { CATEGORIES as SHOPPING_CATEGORIES } from '../data/shoppingCategories.js';
 import { ensureDefaultStoreCategories } from './storeOps';
+import { reconcileCatalog } from './catalog';
 import type { BudgetCategory, Category, Task } from './types';
 
 const DEFAULT_CATEGORIES: Omit<Category, 'updatedAt' | 'deletedAt'>[] = [
@@ -97,9 +98,13 @@ let bootPromise: Promise<void> | null = null;
 export function bootDatabase(): Promise<void> {
   bootPromise ??= (async () => {
     await db.open();
-    await migrateFromLocalStorage(db);
+    const migration = await migrateFromLocalStorage(db);
     await seedIfEmpty();
     await ensureDefaultStoreCategories();
+    // Give every list item a product. History is only turned into products the
+    // once, right after it was created from localStorage: doing it on every boot
+    // would resurrect any product the user had deleted.
+    await reconcileCatalog(db, { seedLegacy: migration.migrated });
   })();
   return bootPromise;
 }

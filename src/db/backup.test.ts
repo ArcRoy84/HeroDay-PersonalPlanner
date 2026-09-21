@@ -187,7 +187,7 @@ describe('stores in backups', () => {
 
     const backup = await exportData();
 
-    expect(backup.version).toBe(2);
+    expect(backup.version).toBe(BACKUP_VERSION);
     expect(backup.data.stores).toHaveLength(1);
     expect(backup.data.storeCategories).toHaveLength(1);
     expect(backup.counts.stores).toBe(1);
@@ -248,7 +248,7 @@ describe('stores in backups', () => {
     // malformed, not an instruction to delete them.
     await db.stores.put(aStore('mine', 'Keep me'));
     const oddFile = JSON.stringify({
-      format: 'heroday-backup', version: 2, exportedAt: ts, counts: {}, data: { tasks: [] },
+      format: 'heroday-backup', version: BACKUP_VERSION, exportedAt: ts, counts: {}, data: { tasks: [] },
     });
 
     await importFromJSON(oddFile, 'replace');
@@ -269,7 +269,7 @@ describe('stores in backups', () => {
   });
 
   it('rejects a file from a newer format than this build understands', () => {
-    const future = JSON.stringify({ format: 'heroday-backup', version: 3, data: {} });
+    const future = JSON.stringify({ format: 'heroday-backup', version: BACKUP_VERSION + 1, data: {} });
     expect(() => parseBackup(future)).toThrow(/newer version/);
   });
 });

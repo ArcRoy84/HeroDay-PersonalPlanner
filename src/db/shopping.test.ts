@@ -9,7 +9,7 @@ const makeList = (id: string, name: string): ShoppingList =>
 
 const makeItem = (id: string, listId: string, name: string): ShoppingItem =>
   ({ id, listId, name, qty: 1, unit: '', category: 'other', storeLocation: '',
-     note: '', estimatedPrice: null, barcode: '', checked: false,
+     note: '', estimatedPrice: null, barcode: '', productId: null, checked: false,
      addedAt: ts, updatedAt: ts, deletedAt: null });
 
 describe('assembleLists', () => {
