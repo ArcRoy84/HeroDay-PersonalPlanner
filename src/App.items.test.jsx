@@ -579,3 +579,148 @@ describe('Items: the inline price editor on a list', () => {
     expect((await db.purchases.toArray()).filter(isLive)).toHaveLength(0);
   });
 });
+
+describe('Items: sample data', () => {
+  it('loads sample data with a clear banner, and removes exactly it', async () => {
+    await seedProduct('mine', 'My own item');
+    const app = await openItemsTab();
+    await waitFor(() => cardNamed(app, 'My own item'), 'the real card');
+    expect(app.querySelector('.isample')).toBeNull();
+
+    await click(byText(app, 'button', 'Load sample data'));
+
+    await waitFor(() => app.querySelector('.isample'), 'the sample-data banner');
+    expect(app.querySelector('.isample').textContent).toContain('sample data');
+    await waitFor(() => cards(app).length === 15, 'the 14 sample cards plus the real one');
+    expect(cardNamed(app, 'Milk')).toBeTruthy();
+    expect(app.querySelector('.hero-figure')).not.toBeNull();
+    // The tiles now have something to say.
+    expect(app.querySelector('.itiles').textContent).not.toContain('Tick items off your list and confirm what you paid');
+    expect(byText(app, 'button', 'Remove sample data')).not.toBeNull();
+
+    await click(byText(app, 'button', 'Remove sample data'));
+
+    await waitFor(() => cards(app).length === 1, 'only the real card to remain');
+    expect(cardNamed(app, 'My own item')).toBeTruthy();
+    expect(app.querySelector('.isample')).toBeNull();
+    expect((await db.products.toArray()).map(p => p.id)).toEqual(['mine']);
+    expect(await db.stores.count()).toBe(0);
+  });
+
+  it('offers to load sample data from the empty state too', async () => {
+    const app = await openItemsTab();
+    expect(app.textContent).toContain('No items yet');
+
+    await click(byText(app, 'button', 'Load sample data'));
+
+    await waitFor(() => cards(app).length === 14, 'the sample cards');
+    expect(app.querySelector('.itiles')).not.toBeNull();
+  });
+});
+
+describe('Items: barcode lookup in the item form', () => {
+  const OFF_URL = '/api/v2/product/';
+
+  /** Open Food Facts answers; the image host does not (as it did from this sandbox). */
+  function stubFetch({ product, status = 200, reject = false } = {}) {
+    const spy = vi.fn(async (url) => {
+      if (reject) throw new TypeError('Failed to fetch');
+      if (String(url).includes(OFF_URL)) {
+        return { ok: status === 200, status, json: async () => (product ? { status: 1, product } : { status: 0 }) };
+      }
+      return { ok: false, status: 500, blob: async () => null };
+    });
+    vi.stubGlobal('fetch', spy);
+    return spy;
+  }
+
+  const NUTELLA = {
+    product_name: 'Nutella', brands: 'Nutella, Ferrero', quantity: '400 g e',
+    image_front_small_url: 'https://images.openfoodfacts.org/x.200.jpg',
+  };
+
+  async function openForm() {
+    const app = await openItemsTab();
+    await click(byText(app, 'button', 'Add your first item'));
+    await waitFor(() => field(app, 'pf-name'), 'the item form');
+    return app;
+  }
+
+  it('fills the form from a barcode, and says when the photo could not be fetched', async () => {
+    const spy = stubFetch({ product: NUTELLA });
+    const app = await openForm();
+    const lookup = byText(app, 'button', 'Look up');
+    expect(lookup.disabled).toBe(true); // nothing to look up yet
+    expect(spy).not.toHaveBeenCalled();
+
+    await type(field(app, 'pf-barcode'), '3017620422003');
+    // Typing a barcode alone never sends anything.
+    expect(spy).not.toHaveBeenCalled();
+    await click(lookup);
+
+    await waitFor(() => field(app, 'pf-name').value === 'Nutella', 'the form to fill');
+    expect(field(app, 'pf-brand').value).toBe('Nutella');
+    expect(field(app, 'pf-size').value).toBe('400 g');
+    const message = app.querySelector('.store-msg');
+    expect(message.textContent).toContain('Filled in from Open Food Facts');
+    expect(message.textContent).toContain('photo could not be downloaded');
+
+    // Only the barcode went to Open Food Facts, then the (failing) image.
+    expect(String(spy.mock.calls[0][0])).toContain('3017620422003.json');
+    expect(String(spy.mock.calls[0][0])).not.toContain('Nutella');
+
+    await submit(app.querySelector('form'));
+    await waitFor(() => cardNamed(app, 'Nutella'), 'the new card');
+    const [row] = (await db.products.toArray()).filter(isLive);
+    expect(row).toMatchObject({ brand: 'Nutella', packageSize: '400 g', barcode: '3017620422003', photo: null });
+  });
+
+  it('never overwrites what you already typed', async () => {
+    stubFetch({ product: NUTELLA });
+    const app = await openForm();
+    await type(field(app, 'pf-name'), 'My hazelnut spread');
+    await type(field(app, 'pf-barcode'), '3017620422003');
+
+    await click(byText(app, 'button', 'Look up'));
+
+    await waitFor(() => field(app, 'pf-brand').value === 'Nutella', 'the rest to fill');
+    expect(field(app, 'pf-name').value).toBe('My hazelnut spread');
+  });
+
+  it('says so when the barcode is not in the database', async () => {
+    stubFetch({ status: 404 });
+    const app = await openForm();
+    await type(field(app, 'pf-barcode'), '3017620422003');
+
+    await click(byText(app, 'button', 'Look up'));
+
+    const message = await waitFor(() => app.querySelector('.store-msg'), 'a message');
+    expect(message.textContent).toContain('No product found');
+    expect(field(app, 'pf-name').value).toBe('');
+  });
+
+  it('shows an error, and keeps the form usable, when the network fails', async () => {
+    stubFetch({ reject: true });
+    const app = await openForm();
+    await type(field(app, 'pf-barcode'), '3017620422003');
+
+    await click(byText(app, 'button', 'Look up'));
+
+    const message = await waitFor(() => app.querySelector('.store-msg--error'), 'the error');
+    expect(message.textContent).toContain('Failed to fetch');
+    // Adding by hand still works.
+    await type(field(app, 'pf-name'), 'By hand');
+    expect(byText(app, 'button[type="submit"]', 'Add Item').disabled).toBe(false);
+  });
+
+  it('does not send anything for something that is not a barcode', async () => {
+    const spy = stubFetch({ product: NUTELLA });
+    const app = await openForm();
+    await type(field(app, 'pf-barcode'), 'hello');
+
+    await click(byText(app, 'button', 'Look up'));
+
+    await waitFor(() => app.querySelector('.store-msg'), 'a message');
+    expect(spy).not.toHaveBeenCalled();
+  });
+});

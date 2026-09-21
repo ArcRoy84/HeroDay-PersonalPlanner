@@ -22,6 +22,9 @@ import { StoresView, StoreIcon } from './shopping/stores.jsx';
 import { StoreFormModal } from './shopping/StoreFormModal.jsx';
 import { OTHER_STORE_CATEGORY_ID } from '../data/storeCategories.js';
 import { computeInsights } from '../analytics/insights';
+import { lookupProduct } from './shopping/lookup.js';
+import { loadSampleData, removeSampleData } from '../demo/sampleData';
+import { describeVariant } from '../db/productOps';
 import { toLocalDate, parseDateOnly } from '../utils/products';
 
 export default function ShoppingList({
@@ -50,6 +53,8 @@ export default function ShoppingList({
   const [editingItem,    setEditingItem]    = useState(null);
   const [deletingItem,   setDeletingItem]   = useState(null);
   const [scanDraft,      setScanDraft]      = useState(null);
+  // The Open Food Facts answer for the barcode being added: { status, code, prefill, message }.
+  const [scanLookup,     setScanLookup]     = useState({ status: 'idle', code: null, prefill: null, message: '' });
   const [showScan,       setShowScan]       = useState(false);
   const [showNewList,    setShowNewList]    = useState(false);
   const [showPlanner,    setShowPlanner]    = useState(false);
@@ -101,6 +106,21 @@ export default function ShoppingList({
     [activeSection, products, purchases, pantryItems, onListProductIds, today],
   );
 
+  // The removable sample data: what the Items section offers to load and remove.
+  const [sampleBusy, setSampleBusy] = useState(false);
+  const sample = useMemo(() => {
+    const run = (work) => async () => {
+      setSampleBusy(true);
+      try { await work(); } catch (failure) { console.error(failure); } finally { setSampleBusy(false); }
+    };
+    return {
+      hasSample: products.some(p => p.demo === true),
+      busy: sampleBusy,
+      load: run(() => loadSampleData()),
+      remove: run(() => removeSampleData()),
+    };
+  }, [products, sampleBusy]);
+
   const catalogActions = useMemo(() => ({
     createProduct, updateProduct, removeProduct, addProductToList,
     logPastPurchase, confirmPurchase, updatePurchase, removePurchase,
@@ -112,11 +132,12 @@ export default function ShoppingList({
     [stores],
   );
 
-  // Barcodes are recorded on purchase-history entries (see toggleItem below),
-  // so previously-purchased products are recognized on future scans.
-  const barcodeMap = useMemo(
-    () => Object.fromEntries(history.filter(h => h.barcode).map(h => [h.barcode, h])),
-    [history]
+  // A scanned code is matched against the product catalog. It learns barcodes as
+  // items are added and bought, and knows the exact product (brand and size
+  // included), which the old name-keyed purchase history could not.
+  const productByBarcode = useMemo(
+    () => Object.fromEntries(products.filter(p => p.barcode).map(p => [p.barcode, p])),
+    [products],
   );
 
   const activeList = lists.find(l => l.id === activeId) || lists[0];
@@ -177,10 +198,12 @@ export default function ShoppingList({
   const addKnownProduct = useCallback((product) => {
     if (!activeList) return;
     createItemInList(activeList.id, {
-      name: product.name, qty: 1, unit: product.unit || '',
+      name: product.name, qty: 1, unit: '',
       category: product.category || categorize(product.name),
-      estimatedPrice: product.estimatedPrice ?? null,
       barcode: product.barcode,
+      // The exact product, so a second brand of "Milk" is not mistaken for this one.
+      productId: product.id,
+      note: describeVariant(product),
     });
   }, [activeList, createItemInList]);
 
@@ -188,7 +211,7 @@ export default function ShoppingList({
   // off to the "unknown code" flow (which it does by closing itself — see
   // ScanItemModal — once scanDraft is populated below).
   const handleScannedCode = useCallback((code) => {
-    const product = barcodeMap[code];
+    const product = productByBarcode[code];
     if (product) {
       addKnownProduct({ ...product, barcode: code });
       return { found: true, name: product.name };
@@ -197,8 +220,25 @@ export default function ShoppingList({
       id: null, name: '', category: categories[0]?.id || 'other', qty: 1, unit: '',
       storeLocation: '', note: '', estimatedPrice: null, barcode: code,
     });
+
+    // An unknown code is looked up on Open Food Facts, sending only the number.
+    // The form is already showing, so a slow or failed lookup never holds up
+    // adding the item by hand; an answer for a code that is no longer the one on
+    // screen is ignored.
+    setScanLookup({ status: 'loading', code, prefill: null, message: '' });
+    lookupProduct(code).then(
+      found => setScanLookup(current => (current.code !== code ? current : found
+        ? { status: 'done', code, prefill: found, message: '' }
+        : { status: 'empty', code, prefill: null, message: '' })),
+      failure => setScanLookup(current => (current.code !== code ? current : {
+        status: 'error', code, prefill: null,
+        message: failure instanceof Error && failure.message
+          ? failure.message
+          : 'Barcode lookup failed. Fill in the details by hand.',
+      })),
+    );
     return { found: false };
-  }, [barcodeMap, addKnownProduct, categories]);
+  }, [productByBarcode, addKnownProduct, categories]);
 
   const handleAdd = () => {
     if (!inputText.trim()) return;
@@ -522,7 +562,8 @@ export default function ShoppingList({
             products={products} purchases={purchases} insights={insights}
             categories={categories} catMap={catMap}
             stores={stores} storeMap={storeMap} lists={lists} activeListId={activeList?.id ?? null}
-            onListProductIds={onListProductIds} actions={catalogActions} />
+            onListProductIds={onListProductIds} actions={catalogActions}
+            onLookup={lookupProduct} sample={sample} />
         )}
         {activeSection === 'stores' && (
           <StoresView
@@ -630,13 +671,20 @@ export default function ShoppingList({
           isNew={!editingItem}
           categories={categories}
           units={units}
+          prefill={!editingItem ? scanLookup.prefill : null}
+          lookup={!editingItem && scanDraft ? scanLookup : null}
           onSave={updates => {
             if (editingItem) updateItem(editingItem.id, updates);
             else createItemInList(activeList?.id, updates);
             setEditingItem(null);
             setScanDraft(null);
+            setScanLookup({ status: 'idle', code: null, prefill: null, message: '' });
           }}
-          onClose={() => { setEditingItem(null); setScanDraft(null); }} />
+          onClose={() => {
+            setEditingItem(null);
+            setScanDraft(null);
+            setScanLookup({ status: 'idle', code: null, prefill: null, message: '' });
+          }} />
       )}
 
       {showScan && (
