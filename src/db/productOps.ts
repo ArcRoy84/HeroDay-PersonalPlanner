@@ -65,6 +65,9 @@ function sameProduct(a: Pick<Product, 'name' | 'brand' | 'packageSize'>, b: type
 export interface CreateProductOptions {
   /** Also put the new product on this list. */
   addToListId?: string;
+  /** How many, and in what unit, when it is added to a list. */
+  qty?: number;
+  unit?: string;
 }
 
 export async function createProduct(
@@ -94,7 +97,7 @@ export async function createProduct(
   if (options.addToListId) {
     await addItemToList(options.addToListId, {
       name: clean.name, category: clean.category, barcode: clean.barcode, productId: id,
-      note: describeVariant(clean),
+      note: describeVariant(clean), qty: options.qty, unit: options.unit,
     });
   }
   return id;

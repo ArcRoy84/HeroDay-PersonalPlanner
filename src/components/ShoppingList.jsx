@@ -1,13 +1,13 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useShoppingPrefs } from '../hooks/useShoppingPrefs';
 import { categorize } from '../data/shoppingCategories.js';
 import ShoppingStoreMode from './ShoppingStoreMode.jsx';
 import BudgetView from './BudgetView.jsx';
 import {
-  IconMic, IconPlus, IconCart, IconShare, IconSparkle,
+  IconPlus, IconShare, IconSparkle,
   IconCalendar, IconNavigation, IconBarcode, NAV,
 } from './shopping/icons.jsx';
-import { parseItems, getSuggestions, daysSince } from './shopping/parsing.js';
+import { parseWithCatalog, getSuggestions, daysSince } from './shopping/parsing.js';
 import { useVoice } from './shopping/useVoice.js';
 import { CategorySection } from './shopping/items.jsx';
 import { EditItemModal } from './shopping/EditItemModal.jsx';
@@ -23,6 +23,9 @@ import { StoreFormModal } from './shopping/StoreFormModal.jsx';
 import { OTHER_STORE_CATEGORY_ID } from '../data/storeCategories.js';
 import { computeInsights } from '../analytics/insights';
 import { lookupProduct } from './shopping/lookup.js';
+import { AddItemBar, NotFoundNotice } from './shopping/AddItemBar.jsx';
+import { ProductFormModal } from './shopping/ProductFormModal.jsx';
+import { resolveByName, popularityOf } from '../utils/productSearch';
 import { loadSampleData, removeSampleData } from '../demo/sampleData';
 import { describeVariant } from '../db/productOps';
 import { toLocalDate, parseDateOnly } from '../utils/products';
@@ -48,13 +51,13 @@ export default function ShoppingList({
 }) {
   const [activeSection,  setActiveSection]  = useState('lists');
   const [activeId,       setActiveId]       = useState(() => lists[0]?.id || null);
-  const [inputText,      setInputText]      = useState('');
   const [storeMode,      setStoreMode]      = useState(false);
   const [editingItem,    setEditingItem]    = useState(null);
   const [deletingItem,   setDeletingItem]   = useState(null);
-  const [scanDraft,      setScanDraft]      = useState(null);
-  // The Open Food Facts answer for the barcode being added: { status, code, prefill, message }.
-  const [scanLookup,     setScanLookup]     = useState({ status: 'idle', code: null, prefill: null, message: '' });
+  // Text that could not be placed on a catalog product ("Product not found"), and
+  // the new-product form opened from it or from the scanner.
+  const [problems,       setProblems]       = useState([]);
+  const [newProduct,     setNewProduct]     = useState(null);
   const [showScan,       setShowScan]       = useState(false);
   const [showNewList,    setShowNewList]    = useState(false);
   const [showPlanner,    setShowPlanner]    = useState(false);
@@ -73,7 +76,6 @@ export default function ShoppingList({
     pantryItems, setPantryItems,
     units, setUnits: updateUnits,
   } = useShoppingPrefs();
-  const inputRef = useRef(null);
 
   const catMap = useMemo(
     () => Object.fromEntries(categories.map(c => [c.id, c])),
@@ -142,17 +144,6 @@ export default function ShoppingList({
 
   const activeList = lists.find(l => l.id === activeId) || lists[0];
 
-  // ── Voice ─────────────────────────────────────────────────────────────────
-  const handleVoiceResult = useCallback((transcript) => {
-    parseItems(transcript).forEach(p => addItem(p));  
-  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleVoiceError = useCallback((msg) => {
-    setVoiceError(msg);
-    setTimeout(() => setVoiceError(''), 5000);
-  }, []);
-
-  const { listening, interim, start: startVoice, stop: stopVoice, supported: voiceOk } = useVoice(handleVoiceResult, handleVoiceError);
 
   // ── List / item CRUD ──────────────────────────────────────────────────────
   // Every action below is a single scoped write against the shopping tables.
@@ -189,10 +180,58 @@ export default function ShoppingList({
     });
   }, [addItemRow]);
 
-  const addItem = useCallback((parsed) => {
+  // ── Adding items from the catalog ──────────────────────────────────────────
+  // Nothing on this list is created from free text. An item is registered on a
+  // catalog product: picked from the suggestions, or matched by name. Whatever
+  // cannot be placed is reported as "Product not found" so that it is added as a
+  // new product on purpose. That is what stops "Milk", "milk 1 gal" and a typo
+  // from becoming three products with three separate price histories.
+  const popularity = useMemo(() => popularityOf(products, purchases), [products, purchases]);
+
+  const addProduct = useCallback((product, { qty = 1, unit = '' } = {}) => {
     if (!activeList) return;
-    addItemToList(activeList.id, parsed);
-  }, [activeList, addItemToList]);
+    addItemRow(activeList.id, {
+      name: product.name, qty, unit,
+      category: product.category || categorize(product.name),
+      barcode: product.barcode,
+      // The exact product, so a second brand of "Milk" is never mistaken for this one.
+      productId: product.id,
+      note: describeVariant(product),
+    });
+  }, [activeList, addItemRow]);
+
+  // Places each parsed item on its product, and returns the ones it could not.
+  const addParsed = useCallback((parsedItems) => {
+    const unresolved = [];
+    for (const parsed of parsedItems) {
+      const result = resolveByName(products, parsed.name, popularity);
+      if (result.kind === 'match') {
+        addProduct(result.product, parsed);
+      } else {
+        unresolved.push({
+          ...parsed,
+          reason: result.kind,
+          options: result.kind === 'ambiguous' ? result.options : [],
+        });
+      }
+    }
+    setProblems(unresolved);
+    return unresolved;
+  }, [products, popularity, addProduct]);
+
+  const addItem = useCallback((parsed) => { addParsed([parsed]); }, [addParsed]);
+
+  // ── Voice ─────────────────────────────────────────────────────────────────
+  const handleVoiceResult = useCallback((transcript) => {
+    addParsed(parseWithCatalog(transcript, products));
+  }, [addParsed, products]);
+
+  const handleVoiceError = useCallback((msg) => {
+    setVoiceError(msg);
+    setTimeout(() => setVoiceError(''), 5000);
+  }, []);
+
+  const { listening, interim, start: startVoice, stop: stopVoice, supported: voiceOk } = useVoice(handleVoiceResult, handleVoiceError);
 
   // ── Barcode scanning ─────────────────────────────────────────────────────
   const addKnownProduct = useCallback((product) => {
@@ -207,45 +246,46 @@ export default function ShoppingList({
     });
   }, [activeList, createItemInList]);
 
-  // Returns { found } so the scan modal knows whether to keep scanning or hand
-  // off to the "unknown code" flow (which it does by closing itself — see
-  // ScanItemModal — once scanDraft is populated below).
+  // Returns { found } so the scan modal knows whether to keep scanning. A code that
+  // is not in the catalog is NOT added: the scan modal says "Product not found"
+  // and offers to add it as a new product (see onAddNew), so a scan can never
+  // create a duplicate.
   const handleScannedCode = useCallback((code) => {
     const product = productByBarcode[code];
-    if (product) {
-      addKnownProduct({ ...product, barcode: code });
-      return { found: true, name: product.name };
-    }
-    setScanDraft({
-      id: null, name: '', category: categories[0]?.id || 'other', qty: 1, unit: '',
-      storeLocation: '', note: '', estimatedPrice: null, barcode: code,
-    });
+    if (!product) return { found: false };
+    addKnownProduct({ ...product, barcode: code });
+    return { found: true, name: product.name };
+  }, [productByBarcode, addKnownProduct]);
 
-    // An unknown code is looked up on Open Food Facts, sending only the number.
-    // The form is already showing, so a slow or failed lookup never holds up
-    // adding the item by hand; an answer for a code that is no longer the one on
-    // screen is ignored.
-    setScanLookup({ status: 'loading', code, prefill: null, message: '' });
-    lookupProduct(code).then(
-      found => setScanLookup(current => (current.code !== code ? current : found
-        ? { status: 'done', code, prefill: found, message: '' }
-        : { status: 'empty', code, prefill: null, message: '' })),
-      failure => setScanLookup(current => (current.code !== code ? current : {
-        status: 'error', code, prefill: null,
-        message: failure instanceof Error && failure.message
-          ? failure.message
-          : 'Barcode lookup failed. Fill in the details by hand.',
-      })),
-    );
-    return { found: false };
-  }, [productByBarcode, addKnownProduct, categories]);
+  // ── "Product not found" → add it as a new product ────────────────────────
+  const capitalise = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
-  const handleAdd = () => {
-    if (!inputText.trim()) return;
-    parseItems(inputText).forEach(p => addItem(p));
-    setInputText('');
-    inputRef.current?.focus();
+  const pickOption = (problem, product) => {
+    addProduct(product, problem);
+    setProblems(ps => ps.filter(p => p !== problem));
   };
+
+  const startNewProduct = (problem) => setNewProduct({
+    name: capitalise(problem.name), barcode: '', qty: problem.qty, unit: problem.unit, problem,
+  });
+
+  const saveNewProduct = async (input, { addToListId }) => {
+    const draft = newProduct;
+    await createProduct(input, { addToListId, qty: draft.qty, unit: draft.unit });
+    setProblems(ps => ps.filter(p => p !== draft.problem));
+    setNewProduct(null);
+  };
+
+  // The new-product form found that it already exists (same name, brand and size):
+  // put that one on the list instead of making a second.
+  const chooseExistingProduct = (productId) => {
+    const draft = newProduct;
+    const existing = products.find(p => p.id === productId);
+    if (existing) addProduct(existing, draft);
+    setProblems(ps => ps.filter(p => p !== draft.problem));
+    setNewProduct(null);
+  };
+
 
   // Ticking an item off also records the purchase and restocks the pantry.
   // Those used to be three separate setState calls stitched together here,
@@ -408,33 +448,14 @@ export default function ShoppingList({
         )}
       </div>
 
-      {/* Search / add bar */}
-      <div className="shop-search-bar">
-        <span className="shop-search-icon"><IconCart /></span>
-        <input
-          ref={inputRef}
-          className="shop-search-input"
-          placeholder={listening
-            ? (interim || 'Listening… try "2 lbs chicken and a dozen eggs"')
-            : 'Add 2 lbs beef + eggs, milk… or speak items'}
-          value={listening ? interim : inputText}
-          onChange={e => !listening && setInputText(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && !listening && handleAdd()}
-          readOnly={listening}
-        />
-        <button
-          className={`shop-mic-btn${listening ? ' shop-mic-btn--on' : ''}`}
-          onClick={listening ? stopVoice : startVoice}
-          disabled={!voiceOk}
-          title={voiceOk ? (listening ? 'Stop' : 'Voice input') : 'Voice not supported'}>
-          <IconMic />
-          {listening && <span className="mic-ring" />}
-        </button>
-        <button className="shop-search-add" onClick={handleAdd} disabled={!inputText.trim() || listening}>
-          <IconPlus />
-        </button>
-      </div>
+      {/* Find an item to add — registered on that exact product */}
+      <AddItemBar
+        products={products} popularity={popularity} categoryMap={catMap}
+        onListProductIds={onListProductIds} voice={{ listening, interim, start: startVoice, stop: stopVoice, supported: voiceOk }}
+        onAddProduct={addProduct} onAddParsed={addParsed} disabled={!activeList} />
       {voiceError && <p className="shop-voice-error">{voiceError}</p>}
+      <NotFoundNotice problems={problems} categoryMap={catMap}
+        onPickOption={pickOption} onAddNew={startNewProduct} onDismiss={() => setProblems([])} />
 
       {/* Progress bar */}
       <div className="shop-progress-track">
@@ -665,31 +686,39 @@ export default function ShoppingList({
       </div>
 
       {/* ── Modals ────────────────────────────────────────────────────────── */}
-      {(editingItem || scanDraft) && (
+      {editingItem && (
         <EditItemModal
-          item={editingItem || scanDraft}
-          isNew={!editingItem}
+          item={editingItem}
+          isNew={false}
           categories={categories}
           units={units}
-          prefill={!editingItem ? scanLookup.prefill : null}
-          lookup={!editingItem && scanDraft ? scanLookup : null}
           onSave={updates => {
-            if (editingItem) updateItem(editingItem.id, updates);
-            else createItemInList(activeList?.id, updates);
+            updateItem(editingItem.id, updates);
             setEditingItem(null);
-            setScanDraft(null);
-            setScanLookup({ status: 'idle', code: null, prefill: null, message: '' });
           }}
-          onClose={() => {
-            setEditingItem(null);
-            setScanDraft(null);
-            setScanLookup({ status: 'idle', code: null, prefill: null, message: '' });
-          }} />
+          onClose={() => setEditingItem(null)} />
+      )}
+
+      {newProduct && (
+        <ProductFormModal
+          product={null}
+          initial={{
+            name: newProduct.name,
+            barcode: newProduct.barcode,
+            category: newProduct.name ? categorize(newProduct.name) : undefined,
+          }}
+          defaultAddToList
+          autoLookup={Boolean(newProduct.barcode)}
+          categories={categories} lists={lists} defaultListId={activeList?.id}
+          existingLabel="Add that one instead"
+          onSave={saveNewProduct} onOpenExisting={chooseExistingProduct} onLookup={lookupProduct}
+          onClose={() => setNewProduct(null)} />
       )}
 
       {showScan && (
         <ScanItemModal
           onCode={handleScannedCode}
+          onAddNew={code => { setShowScan(false); setNewProduct({ name: '', barcode: code, qty: 1, unit: '', problem: null }); }}
           onClose={() => setShowScan(false)} />
       )}
 

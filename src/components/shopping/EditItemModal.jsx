@@ -1,16 +1,8 @@
 // Create/edit form for one shopping item.
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { IconX, IconLink } from './icons.jsx';
 
-/**
- * `prefill` and `lookup` come from a barcode scan: when Open Food Facts answers,
- * the name and category are filled in — but only if nothing has been typed yet,
- * so a slow answer never overwrites the user. Brand, size and photo ride along
- * to the product this item creates, and only if the name is still the one that
- * was looked up (a renamed item is a different product).
- */
-function EditItemModal({ item, isNew, onSave, onClose, categories, units, prefill, lookup }) {
-  const carried = useRef(null);
+function EditItemModal({ item, isNew, onSave, onClose, categories, units }) {
   const [fields, setFields] = useState({
     name:          item.name,
     category:      item.category,
@@ -23,23 +15,8 @@ function EditItemModal({ item, isNew, onSave, onClose, categories, units, prefil
     barcode:       item.barcode || '',
   });
 
-  useEffect(() => {
-    if (!prefill) return;
-    carried.current = { brand: prefill.brand, packageSize: prefill.packageSize, photo: prefill.photo };
-    setFields(f => {
-      const untouched = !f.name.trim();
-      return {
-        ...f,
-        name: untouched ? prefill.name : f.name,
-        category: untouched && prefill.category ? prefill.category : f.category,
-      };
-    });
-  }, [prefill]);
-
   function handleSave() {
-    const sameName = prefill && fields.name.trim().toLowerCase() === prefill.name.trim().toLowerCase();
     onSave({
-      ...(sameName ? carried.current : {}),
       name:          fields.name.trim() || item.name,
       category:      fields.category,
       storeLocation: fields.storeLocation.trim(),
@@ -77,21 +54,6 @@ function EditItemModal({ item, isNew, onSave, onClose, categories, units, prefil
               placeholder="e.g. 041631234567" />
             {isNew && fields.barcode && (
               <p className="shop-field-hint">New code — fill in the details below. Once you check this item off as purchased, the code is remembered for next time.</p>
-            )}
-            {lookup?.status === 'loading' && (
-              <p className="shop-field-hint" role="status">Looking this barcode up on Open Food Facts…</p>
-            )}
-            {lookup?.status === 'done' && (
-              <p className="shop-field-hint" role="status">
-                Filled in from Open Food Facts. Check the details before adding.
-                {lookup.prefill?.photoFailed ? ' The photo could not be downloaded.' : ''}
-              </p>
-            )}
-            {lookup?.status === 'empty' && (
-              <p className="shop-field-hint" role="status">Open Food Facts does not know this barcode. Fill in the details by hand.</p>
-            )}
-            {lookup?.status === 'error' && (
-              <p className="shop-field-hint" role="alert">{lookup.message}</p>
             )}
           </div>
 

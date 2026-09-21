@@ -54,6 +54,14 @@ export async function type(element, value) {
   });
 }
 
+/** Presses a key while `element` has focus, as a keyboard user would. */
+export async function press(element, key) {
+  if (!element) throw new Error('press(): element not found');
+  await act(async () => {
+    element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  });
+}
+
 /** Submits the form containing `element`. */
 export async function submit(form) {
   await act(async () => {

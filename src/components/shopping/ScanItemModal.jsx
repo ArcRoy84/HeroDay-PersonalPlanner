@@ -4,8 +4,11 @@ import { IconX, IconCheck } from './icons.jsx';
 
 const BARCODE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'];
 
-function ScanItemModal({ onCode, onClose }) {
+function ScanItemModal({ onCode, onAddNew, onClose }) {
   const [manualCode,  setManualCode]  = useState('');
+  // A scanned code that is not in the catalog. The scanner keeps running, so the
+  // next code can still be scanned.
+  const [missing,     setMissing]     = useState('');
   const [cameraError, setCameraError] = useState('');
   const [scanning,    setScanning]    = useState(false);
   const [feed,        setFeed]        = useState([]);
@@ -21,7 +24,8 @@ function ScanItemModal({ onCode, onClose }) {
     if (lastRef.current.code === code && now - lastRef.current.at < 2500) return; // debounce repeat frames
     lastRef.current = { code, at: now };
     const result = onCode(code);
-    if (!result?.found) { onClose(); return; }
+    if (!result?.found) { setMissing(code); return; }
+    setMissing('');
     setFeed(f => [{ code, name: result.name }, ...f].slice(0, 6));
   }
 
@@ -100,6 +104,19 @@ function ScanItemModal({ onCode, onClose }) {
             <button className="btn-primary sm" onClick={submitManual} disabled={!manualCode.trim()}>Look Up</button>
           </div>
         </div>
+
+        {missing && (
+          <div className="scan-missing" role="alert">
+            <p className="scan-missing-title">Product not found</p>
+            <p className="scan-missing-text">
+              The barcode <strong>{missing}</strong> isn’t in your items yet. Add it as a new
+              product so it is tracked, and recognised the next time you scan it.
+            </p>
+            <button type="button" className="btn-primary sm" onClick={() => onAddNew(missing)}>
+              Add as new product
+            </button>
+          </div>
+        )}
 
         {feed.length > 0 && (
           <div className="scan-feed">

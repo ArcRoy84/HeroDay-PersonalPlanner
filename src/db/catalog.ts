@@ -10,7 +10,6 @@
 import { newId, now } from './ids';
 import { isLive } from './repo';
 import { nameKey, toLocalDate } from '../utils/products';
-import { isSafeImage } from '../utils/stores';
 import type { HeroDayDB } from './schema';
 import type { Product, Purchase, ShoppingItem, ShoppingHistoryEntry } from './types';
 
@@ -51,8 +50,6 @@ export interface ProductFields extends ProductLookup {
   category?: string;
   brand?: string;
   packageSize?: string;
-  /** An inline image; anything else is dropped. */
-  photo?: string | null;
 }
 
 export function buildProduct(fields: ProductFields, timestamp: string): Product {
@@ -64,7 +61,7 @@ export function buildProduct(fields: ProductFields, timestamp: string): Product 
     brand: fields.brand?.trim() ?? '',
     packageSize: fields.packageSize?.trim() ?? '',
     barcode: fields.barcode?.trim() ?? '',
-    photo: isSafeImage(fields.photo) ? fields.photo : null,
+    photo: null,
     notes: '',
     priorPurchases: 0,
     createdAt: timestamp,

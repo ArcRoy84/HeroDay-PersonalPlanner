@@ -39,14 +39,6 @@ export interface NewItemFields {
    * created) from the name, which cannot tell two brands of "Milk" apart.
    */
   productId?: string;
-  /**
-   * Details for the product, used only if this add has to create one — a scan
-   * that looked the barcode up knows the brand, size and photo. An existing
-   * product keeps what it has.
-   */
-  brand?: string;
-  packageSize?: string;
-  photo?: string | null;
 }
 
 const round2 = (n: number): number => Number(n.toFixed(2));
@@ -94,7 +86,6 @@ export async function addItemToList(
       ? named
       : await resolveProduct(db.products, {
         name, category: fields.category, barcode: fields.barcode,
-        brand: fields.brand, packageSize: fields.packageSize, photo: fields.photo,
       }, timestamp);
 
     await db.shoppingItems.put({

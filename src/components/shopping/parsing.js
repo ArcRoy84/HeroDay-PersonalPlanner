@@ -1,3 +1,4 @@
+import { nameKey } from '../../utils/products';
 // Free-text item parsing, purchase suggestions, and small display helpers.
 import { UNITS } from './constants.js';
 
@@ -23,6 +24,16 @@ function parseOne(raw) {
 
 function parseItems(raw) {
   return raw.split(/\s+and\s+|,\s*/i).map(parseOne).filter(Boolean);
+}
+
+/**
+ * Like `parseItems`, but a name that is itself a product stays whole. Splitting
+ * on "and" would otherwise tear "Mac and cheese" into "Mac" and "cheese".
+ */
+function parseWithCatalog(raw, products) {
+  const whole = parseOne(raw);
+  if (whole && products.some(p => !p.deletedAt && p.nameKey === nameKey(whole.name))) return [whole];
+  return parseItems(raw);
 }
 
 function getSuggestions(history, items) {
@@ -102,6 +113,6 @@ function formatDayLabel(dateStr, offset) {
 }
 
 export {
-  cleanText, parseOne, parseItems, getSuggestions, daysSince,
+  cleanText, parseOne, parseItems, parseWithCatalog, getSuggestions, daysSince,
   resizeImage, pantryPct, pantryColor, recipeStock, formatDayLabel,
 };

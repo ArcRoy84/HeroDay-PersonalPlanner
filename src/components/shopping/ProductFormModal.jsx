@@ -11,30 +11,40 @@ const PHOTO_MAX_PX = 320;
 // Refuse absurd files before decoding one into a canvas.
 const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 
-function initialFields(product, categories) {
+function initialFields(product, categories, initial) {
+  const suggested = initial?.category && categories.some(c => c.id === initial.category)
+    ? initial.category
+    : undefined;
   return {
-    name:        product?.name ?? '',
-    category:    product?.category ?? categories[0]?.id ?? 'other',
+    name:        product?.name ?? initial?.name ?? '',
+    category:    product?.category ?? suggested ?? categories[0]?.id ?? 'other',
     brand:       product?.brand ?? '',
     packageSize: product?.packageSize ?? '',
-    barcode:     product?.barcode ?? '',
+    barcode:     product?.barcode ?? initial?.barcode ?? '',
     photo:       product?.photo ?? null,
     notes:       product?.notes ?? '',
   };
 }
 
 /**
+ * `initial` pre-fills a new product ({ name, barcode, category }) — used when the
+ * list found something it could not place, or the scanner met an unknown code.
+ * `defaultAddToList` ticks "also add it to a list", and `autoLookup` runs the
+ * barcode lookup as soon as the form opens (the barcode was just scanned).
+ * `existingLabel` names the button offered when the product already exists.
+ *
  * `product` is null when creating. `onSave(input, { addToListId })` may reject;
  * the message is shown here instead of being lost. `onLookup(barcode)` is
  * optional: when given, a Look up button fills the form from a barcode.
  */
 function ProductFormModal({
   product, categories, lists, defaultListId,
+  initial, defaultAddToList = false, autoLookup = false, existingLabel = 'Open it',
   onSave, onOpenExisting, onLookup, onClose,
 }) {
   const isNew = !product;
-  const [fields, setFields] = useState(() => initialFields(product, categories));
-  const [addToList, setAddToList] = useState(false);
+  const [fields, setFields] = useState(() => initialFields(product, categories, initial));
+  const [addToList, setAddToList] = useState(defaultAddToList);
   const [listId, setListId] = useState(defaultListId ?? lists[0]?.id ?? '');
   const [error, setError] = useState('');
   const [duplicateId, setDuplicateId] = useState(null);
@@ -55,6 +65,11 @@ function ProductFormModal({
 
   const set = (key, value) => setFields(f => ({ ...f, [key]: value }));
   const category = categories.find(c => c.id === fields.category);
+
+  // A barcode that was just scanned is looked up straight away, once.
+  useEffect(() => {
+    if (autoLookup && onLookup && fields.barcode.trim()) handleLookup();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handlePhotoPicked(event) {
     const file = event.target.files?.[0];
@@ -243,7 +258,7 @@ function ProductFormModal({
               {error}
               {duplicateId && onOpenExisting && (
                 <> <button type="button" className="link-btn" onClick={() => onOpenExisting(duplicateId)}>
-                  Open it
+                  {existingLabel}
                 </button></>
               )}
             </p>

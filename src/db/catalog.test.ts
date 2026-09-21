@@ -72,35 +72,6 @@ describe('resolveProduct', () => {
   });
 });
 
-describe('resolveProduct with details from a scan', () => {
-  const PHOTO = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==';
-
-  it('creates a product with the brand, size and photo it was given', async () => {
-    const created = await resolveProduct(db.products, {
-      name: 'Nutella', brand: 'Ferrero', packageSize: '400 g', barcode: '301', photo: PHOTO,
-    });
-
-    expect(created.brand).toBe('Ferrero');
-    expect(created.packageSize).toBe('400 g');
-    expect(created.photo).toBe(PHOTO);
-  });
-
-  it('leaves an existing product exactly as it was', async () => {
-    const first = await resolveProduct(db.products, { name: 'Nutella', brand: 'Original' });
-
-    const again = await resolveProduct(db.products, { name: 'Nutella', brand: 'Different', photo: PHOTO });
-
-    expect(again.id).toBe(first.id);
-    expect(again.brand).toBe('Original');
-    expect(again.photo).toBeNull();
-  });
-
-  it('drops a photo that is not an inline image', async () => {
-    const created = await resolveProduct(db.products, { name: 'X', photo: 'https://evil.example/p.png' });
-    expect(created.photo).toBeNull();
-  });
-});
-
 describe('seedCatalogFromHistory', () => {
   it('turns each history entry into a product with one dated legacy purchase', async () => {
     await db.shoppingHistory.put(entry('Milk', { count: 5, lastBought: '2026-09-10T15:00:00.000Z' }));

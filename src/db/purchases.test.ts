@@ -80,19 +80,6 @@ describe('adding an item', () => {
     expect(rows[0]?.qty).toBe(3);
   });
 
-  it('creates the product with the details a scan looked up', async () => {
-    await addItemToList(LIST, {
-      name: 'Nutella', barcode: '3017620422003', brand: 'Ferrero', packageSize: '400 g',
-      photo: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==',
-    });
-
-    const product = (await db.products.toArray())[0]!;
-    expect(product.brand).toBe('Ferrero');
-    expect(product.packageSize).toBe('400 g');
-    expect(product.barcode).toBe('3017620422003');
-    expect(product.photo).toMatch(/^data:image\/jpeg/);
-  });
-
   it('re-links an item when it is renamed to something else', async () => {
     await addItemToList(LIST, { name: 'Milk' });
     const milk = await itemNamed('Milk');
