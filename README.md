@@ -111,6 +111,14 @@ Add the places you shop, with everything you'd want to know about them.
 ### 🧩 Dashboard
 Sidebar with a completion ring, day streak, pending-tasks-by-priority breakdown, time-remaining estimate, top categories chart, and a live weather widget.
 
+### 📱 On a phone
+On screens up to 600px wide the layout changes; desktop and tablet are untouched.
+- **Bottom tab bar** with the five areas (Checklist, Timeline, Review, Learning, Shopping), always in thumb reach.
+- **Waffle menu** (the nine-dot button in the header) opens every destination in groups — Planner, Shopping (jumping straight to a section) and App (Settings).
+- **Shopping sections** sit in a strip along the top; in **My List** the add bar moves to the bottom with its suggestions opening upward, and the less-used tools (Categories, Units, store link, Delete list) fold behind **More**.
+- **The main action floats above the tab bar** — New task, Add item, Add store, Create Recipe, Log Expense — instead of sitting in a header.
+- **Dialogs are bottom sheets** with Save / Cancel pinned to the bottom, 16px inputs (so iOS doesn't zoom), and tap targets of at least 44px. A tap opens a task or a timeline card, since a phone has no hover to reveal Edit / Delete.
+
 ### 💾 Your data
 Open **Settings → Your Data**:
 - **Export backup** downloads everything as one JSON file that you own.
@@ -171,7 +179,7 @@ src/
   demo/         Removable sample data
   data/         Static data: categories, curated lists
   utils/        Formatting, dates, geo, product search, Open Food Facts client
-  styles/       CSS split by area; index.css is the import manifest
+  styles/       CSS split by area; index.css is the import manifest (mobile.css is the phone layer)
   test/         Test helpers
   App.jsx       Boot gate and view routing
 public/         Static assets (favicon)
@@ -188,6 +196,7 @@ The suite covers the database operations, schema upgrades, backup and restore, t
 - **Currency is dollars only.** Amounts are shown with `$` everywhere.
 - **The quick-add parser knows a fixed list of units** (`gallon`, `lbs`, `oz`…). An abbreviation it doesn't recognise, such as `gal`, stays part of the name and can stop an item matching.
 - **Recipe ingredients and renaming a list item can still create a product by name.** Typing, voice and scanning are catalog-only.
+- **The timeline can't be dragged by touch.** Moving and resizing a card uses the mouse; on a phone, tap a card to edit its time instead.
 - **There is no sync.** Data lives on one device in one browser. Use **Export backup** to move or protect it.
 
 ## Data & privacy

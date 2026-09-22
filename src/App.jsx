@@ -9,6 +9,7 @@ import StatsPanel from './components/StatsPanel.jsx';
 import LearningPlan from './components/LearningPlan.jsx';
 import ShoppingList from './components/ShoppingList.jsx';
 import FAB from './components/FAB.jsx';
+import { MobileTabBar, WaffleMenu } from './components/MobileNav.jsx';
 import { getToday, navigateDate } from './utils/helpers.js';
 import { newId } from './db/ids';
 import { useDatabaseReady } from './hooks/useDatabaseReady';
@@ -18,6 +19,7 @@ import { useShopping } from './hooks/useShopping';
 import { useStores } from './hooks/useStores';
 import { useProducts } from './hooks/useProducts';
 import { useSetting } from './hooks/useSetting';
+import { useIsMobile } from './hooks/useIsMobile';
 
 const NO_STREAK = { count: 0, lastDate: null };
 
@@ -73,6 +75,10 @@ function HeroDay() {
 
   // ── Modal state ────────────────────────────────────────────────────────────
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // Which Shopping section is showing. Lives here so the phone menu can jump to one.
+  const [shopSection, setShopSection] = useState('lists');
+  const isMobile = useIsMobile();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [defaultModalTime, setDefaultModalTime] = useState('');
@@ -224,6 +230,7 @@ function HeroDay() {
         view={view} setView={setView}
         currentDate={currentDate} setCurrentDate={setCurrentDate}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenMenu={isMobile ? () => setIsMenuOpen(true) : undefined}
       />
 
       <div className="app-body">
@@ -301,6 +308,8 @@ function HeroDay() {
               {...shopping}
               {...stores}
               {...catalog}
+              section={shopSection}
+              onSectionChange={setShopSection}
               onAddToPlanner={(data) => addTask(data)}
             />
           )}
@@ -308,6 +317,19 @@ function HeroDay() {
       </div>
 
       {view !== 'learn' && view !== 'shop' && <FAB onClick={() => openModal()} />}
+
+      {isMobile && <MobileTabBar view={view} setView={setView} />}
+
+      {isMobile && isMenuOpen && (
+        <WaffleMenu
+          view={view}
+          setView={setView}
+          shopSection={shopSection}
+          setShopSection={setShopSection}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onClose={() => setIsMenuOpen(false)}
+        />
+      )}
 
       {isSettingsOpen && (
         <SettingsModal

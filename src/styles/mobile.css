@@ -1,0 +1,281 @@
+/* Phone layout — mobile only.
+   Nothing outside the media query below changes the desktop or tablet layout.
+   The layout on a phone is: a slim header (brand, date, waffle menu) on top; the
+   five areas as a tab bar at the bottom; and the main action floating just above
+   it, where a thumb rests. Keep the breakpoint in step with MOBILE_QUERY in
+   hooks/useIsMobile.ts. */
+
+/* Not phone-only markup: hidden until the media query below turns it on. */
+.m-tabbar, .header-waffle, .m-waffle-backdrop, .shop-subnav { display: none; }
+
+@media (max-width: 600px) {
+  :root {
+    --header-h: 52px;
+    --tabbar-h: calc(58px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ── Header: brand · date · waffle ─────────────────────── */
+  .header { padding: 0 6px 0 14px; }
+  .header-brand { margin-right: 0; flex: 1; min-width: 0; }
+  .header-brand .brand-name { display: block; font-size: 16px; }
+  .brand-tagline { display: none; }
+  .header-nav, .settings-btn { display: none; }
+  .header-controls { gap: 2px; }
+  .date-nav-btn { width: 44px; height: 44px; }
+  .date-label { font-size: 14px; padding: 0 6px; min-height: 44px; min-width: 56px; }
+  .header-waffle {
+    display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+  }
+  .header-waffle:active { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* ── Bottom tab bar ────────────────────────────────────── */
+  .m-tabbar {
+    display: flex;
+    position: fixed; left: 0; right: 0; bottom: 0;
+    height: var(--tabbar-h);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    z-index: 120;
+  }
+  .m-tab {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 6px 2px;
+    color: var(--text-secondary);
+    font-size: 12px; font-weight: 600;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .m-tab svg { width: 20px; height: 20px; }
+  .m-tab--active { color: var(--accent); }
+  html[data-store-mode] .m-tabbar { display: none; }
+
+  /* The content stops above the bar instead of hiding behind it. */
+  .app-body { padding-bottom: var(--tabbar-h); }
+  html[data-store-mode] .app-body { padding-bottom: 0; }
+
+  /* The main action rides just above the bar, on the thumb side. */
+  .fab {
+    bottom: calc(var(--tabbar-h) + 14px);
+    right: 16px;
+    width: 56px; height: 56px; padding: 0;
+    justify-content: center;
+  }
+
+  /* ── Waffle menu ───────────────────────────────────────── */
+  .m-waffle-backdrop {
+    display: block;
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  .m-waffle {
+    position: absolute; top: var(--header-h); left: 0; right: 0;
+    max-height: calc(100dvh - var(--header-h) - 24px);
+    overflow-y: auto;
+    padding: 6px 14px 16px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  }
+  .m-waffle-heading {
+    margin: 12px 2px 8px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .m-waffle-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .m-waffle-tile {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; min-height: 68px; padding: 10px 4px;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg-surface); color: var(--text-primary);
+    font-size: 12px; font-weight: 600; text-align: center; line-height: 1.2;
+  }
+  .m-waffle-tile svg { width: 20px; height: 20px; color: var(--text-secondary); }
+  .m-waffle-tile--active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+  .m-waffle-tile--active svg { color: var(--accent); }
+
+  /* ── Dashboard: one slim strip instead of a wall of cards ─ */
+  .dashboard { padding: 8px 12px; gap: 8px; }
+  .dash-tile { padding: 8px 12px; min-width: 0; }
+  .tile-completion, .tile-streak, .tile-time { gap: 10px; }
+  .tile-ring svg { width: 34px; height: 34px; }
+  .ring-label { font-size: 10px; }
+  .tile-value { font-size: 16px; }
+  .tile-label { font-size: 11px; }
+  .streak-flame { font-size: 22px; }
+  .time-icon { font-size: 18px; }
+  .tile-label-top { margin-bottom: 4px; }
+  .priority-rows { flex-direction: row; gap: 12px; }
+  .priority-row-label { display: none; }
+  .tile-categories { display: none; }
+
+  /* ── Timeline: the day gets the screen; the extras sit below it ─ */
+  .tl2-view { height: auto; min-height: 100%; overflow: visible; }
+  .tl2-left { flex: none; height: calc(100dvh - var(--header-h) - var(--tabbar-h) - 80px); min-height: 320px; }
+  .tl-day-stats { display: none; }   /* the dashboard strip already says this */
+
+  /* ── Shopping: sections as a strip at the top ──────────── */
+  .shop-left { display: none; }
+  .shop-subnav {
+    display: flex; flex-shrink: 0; gap: 6px;
+    padding: 8px 12px;
+    overflow-x: auto; scrollbar-width: none;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .shop-subnav::-webkit-scrollbar { display: none; }
+  .shop-subnav-item {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+    min-height: 44px; padding: 0 14px;
+    border-radius: 22px;
+    background: var(--bg-elevated); color: var(--text-secondary);
+    font-size: 14px; font-weight: 600; white-space: nowrap;
+  }
+  .shop-subnav-item svg { width: 16px; height: 16px; }
+  .shop-subnav-item--active { background: var(--accent-bg); color: var(--accent); }
+
+  /* ── Touch: hit areas of at least 44px, and no hover-only controls ─ */
+  /* Edit / Delete only appear on hover, which a phone does not have. Tapping the
+     row (or card) opens it, and the editor carries Delete. */
+  .task-actions { display: none; }
+  .tl-card-actions .tl-card-btn:not(:first-child) { display: none; }
+  .tl-card-actions { opacity: 1; }
+  .tl-card-btn { width: 32px; height: 32px; }
+  .tl-card-btn svg { width: 16px; height: 16px; }
+
+  /* The checkbox keeps its size; its tappable area grows around it. */
+  .task-check { position: relative; width: 22px; height: 22px; }
+  .task-check::before { content: ''; position: absolute; inset: -11px; }
+  .task-item { padding: 12px; min-height: 56px; }
+
+  /* Checklist toolbar: filters on one row, sorting on the next. "+ Add task" is
+     the floating button, so it is not repeated here. */
+  .cl-toolbar { padding: 8px 12px; gap: 8px; align-items: stretch; }
+  .cl-filters { gap: 6px; }
+  .filter-chip { min-height: 44px; padding: 0 14px; font-size: 14px; flex: 1; }
+  .cl-sorts { gap: 8px; }
+  .cl-sorts .sort-select { min-height: 44px; font-size: 16px; }
+  .cl-add-btn { display: none; }
+  .task-groups { padding: 8px 12px 96px; }
+  .cl-footer { padding: 10px 16px; }
+
+  .mini-cal-arrow { width: 40px; height: 40px; }
+  .mini-cal-month-btn { min-height: 40px; }
+
+  /* Small text buttons get a 44px-tall target. */
+  .btn-ghost, .btn-primary, .btn-danger, .btn-secondary { min-height: 44px; }
+
+  /* 16px inputs: anything smaller makes iOS zoom the page when one is focused. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px; }
+
+  /* ── Dialogs become bottom sheets, anchored where the thumb is ─ */
+  .modal-overlay, .settings-overlay, .shop-overlay, .cat-editor-overlay {
+    align-items: flex-end; padding: 0;
+  }
+  .modal, .settings-modal, .shop-dialog, .shop-dialog--lg {
+    width: 100%; max-width: none;
+    max-height: 92dvh;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .modal-footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .modal-header, .modal-body { padding-left: 16px; padding-right: 16px; }
+  .settings-modal-header { padding: 16px; }
+  .settings-close { width: 44px; height: 44px; }
+
+  /* The empty weather card is a prompt, not a panel: keep it to one line. */
+  .tile-weather-empty { flex-direction: row; text-align: left; padding: 8px 12px; gap: 10px; min-width: 210px; }
+  .weather-empty-icon { font-size: 20px; }
+
+  .tl2-now-line { padding-right: 8px; }
+  .tl2-now-time { font-size: 11px; }
+  .task-modal-hint, .btn-primary kbd { display: none; }
+
+  /* Task form: priority is three short choices, so one row, not three. */
+  .priority-group { flex-direction: row; }
+  .prio-btn { min-height: 44px; font-size: 14px; padding: 0 8px; }
+  .modal-footer-right { flex: 1; }
+  .modal-footer-right .btn-primary { flex: 1; justify-content: center; }
+
+  /* ── My List: tools grouped, add bar within thumb reach ──── */
+  .shop-list-tabs-bar { padding: 8px 16px 0; }
+  .shop-list-chip { min-height: 44px; font-size: 15px; white-space: nowrap; flex-shrink: 0; }
+  .shop-list-chip--new { gap: 6px; border-style: dashed; color: var(--accent); }
+  .shop-store-mode-btn { min-height: 44px; }
+  .shop-list-secondary-actions { padding: 8px 16px 0; flex-wrap: wrap; }
+  .shop-list-secondary-actions .btn-ghost, .store-link-select { min-height: 44px; }
+  .shop-list-secondary-actions--m:not(.is-open) > :not(:first-child):not(.shop-more-btn) { display: none; }
+  .shop-list-hdr { padding: 10px 16px 6px; }
+  .shop-progress-track { margin: 0 16px; }
+  .shop-pills { padding: 4px 16px 8px; }
+
+  /* The add bar sits at the bottom of the list, just above the tab bar, and its
+     suggestions open upward. While typing, the tab bar steps aside for the keyboard. */
+  .shop-center-content > .addbar {
+    order: 20; padding: 8px 16px;
+    background: var(--bg-elevated); border-top: 1px solid var(--border);
+  }
+  .shop-center-content > .shop-voice-error, .shop-center-content > .notfound { order: 19; }
+  .shop-search-input { min-height: 44px; }
+  .shop-mic-btn, .shop-search-add { width: 44px; height: 44px; }
+  .asuggest { top: auto; bottom: calc(100% - 4px); left: 16px; right: 16px; max-height: 45dvh; }
+  html:has(.addbar input:focus) .m-tabbar { display: none; }
+  html:has(.addbar input:focus) .app-body { padding-bottom: 0; }
+
+  /* ── Shopping sections: title up top, tools beneath, main action floating ─ */
+  .shop-center-header { flex-wrap: wrap; gap: 8px 12px; padding: 12px 16px 8px; }
+  .shop-center-header > :first-child { flex: 1 1 100%; min-width: 0; }
+  .shop-center-header .btn-ghost { white-space: nowrap; }
+  .store-header-actions, .budget-header-actions { flex: 1 1 100%; gap: 8px; }
+  .budget-methodology-switch { overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .budget-methodology-switch::-webkit-scrollbar { display: none; }
+
+  /* Add item / Add store / Create Recipe / Log Expense: one pill, same place as
+     the task button on the other screens. */
+  .shop-center-header .btn-primary {
+    position: fixed; right: 16px; bottom: calc(var(--tabbar-h) + 14px); z-index: 130;
+    min-height: 52px; padding: 0 20px; border-radius: 26px;
+    font-size: 15px; font-weight: 600; white-space: nowrap;
+    box-shadow: 0 4px 20px var(--accent-glow), 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+  html[data-store-mode] .shop-center-header .btn-primary { display: none; }
+
+  /* Room under the last card for that pill. The list has its add bar below it. */
+  .shop-center-scroll { padding: 0 16px 88px; }
+  .shop-center-scroll:has(~ .addbar) { padding-bottom: 16px; }
+
+  /* Long forms: Save / Cancel stay pinned to the bottom of the sheet instead of
+     sitting at the end of a scroll. */
+  .shop-dialog, .shop-dialog--lg { padding-bottom: 0; }
+  .shop-dialog-actions {
+    position: sticky; bottom: 0; z-index: 2;
+    margin: 4px -20px 0; padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, white 14%, var(--bg-elevated));
+    border-top: 1px solid var(--border);
+  }
+  .shop-dialog-actions > * { flex: 1; justify-content: center; min-height: 48px; }
+  .shop-field-label { font-size: 12px; color: var(--text-secondary); }
+  .shop-dialog .form-input, .shop-dialog .form-select { min-height: 44px; }
+
+  /* ── Items and Stores: finger-sized controls ───────────── */
+  .sic-act, .store-card-actions .sic-act { min-width: 44px; min-height: 44px; }
+  .store-emoji-grid { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .store-emoji-btn { min-height: 44px; font-size: 20px; }
+  .ifilters .form-input { min-height: 44px; }
+  .ichip { min-height: 40px; padding: 0 14px; font-size: 14px; }
+  .link-btn { padding: 12px 0; }
+
+  /* ── Learning ──────────────────────────────────────────── */
+  .lp-filter-btn, .lp-add-btn, .lp-mark-btn, .lp-mode-btn { min-height: 44px; }
+  .lp-lesson-link-btn { width: 44px; height: 44px; }
+
+  /* ── Readable text: nothing smaller than 12px on a phone ── */
+  .tile-label, .tile-label-top, .card-label, .weather-empty-text, .task-meta-chip,
+  .tl-card-time, .tl-card-cat, .tl-card-status-label, .tl2-hour-label,
+  .mini-cal-dh, .mini-cal-num, .sticky-title, .week-bar-pct, .week-bar-day, .week-bar-num,
+  .lp-header-eyebrow, .lp-sum-lbl, .lp-add-btn, .cl-summary { font-size: 12px; }
+  .tl-card-title { font-size: 13px; }
+}

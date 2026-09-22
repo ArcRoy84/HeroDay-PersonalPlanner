@@ -2167,7 +2167,6 @@
 @media (max-width: 480px) {
   .shop-left { display: none; }
   .shop-center-scroll { padding-bottom: 80px; }
-  .shop-bottom-nav { display: flex; }
 
   /* Prevent iOS from zooming in on input focus */
   .shop-search-input { font-size: 16px; }
@@ -2183,65 +2182,6 @@
 }
 
 /* ── Mobile bottom nav ─────────────────────────────────────── */
-.shop-bottom-nav {
-  display: none;
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  height: calc(60px + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: var(--bg-elevated);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 24px rgba(0,0,0,.10);
-  z-index: 200;
-  align-items: stretch;
-}
-
-.shop-bnav-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  border: none;
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  min-height: 44px;
-  padding: 6px 2px;
-  transition: color .15s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.shop-bnav-item--active { color: var(--accent); }
-
-.shop-bnav-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  line-height: 1;
-}
-
-.shop-bnav-new {
-  flex: 0 0 auto;
-  flex-direction: row;
-  gap: 5px;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 14px;
-  margin: auto 8px;
-  padding: 0 14px;
-  height: 40px;
-  font-size: 12px;
-}
-
-.shop-bnav-new .shop-bnav-label {
-  font-size: 11px;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 /* ── Voice error ──────────────────────────────────────────── */
 .shop-voice-error {
   margin: 0 20px 0;

@@ -10,6 +10,7 @@ import { IconCart, IconMic, IconPlus } from './icons.jsx';
 import { ProductThumb } from './productParts.jsx';
 import { parseWithCatalog } from './parsing.js';
 import { searchProducts } from '../../utils/productSearch';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { describeVariant } from '../../db/productOps';
 
 /** Puts a parsed item back into the words a person would type. */
@@ -29,6 +30,7 @@ function AddItemBar({
   onAddProduct, onAddParsed, disabled = false,
 }) {
   const [text, setText] = useState('');
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
@@ -102,7 +104,7 @@ function AddItemBar({
         autoComplete="off"
         placeholder={listening
           ? (voice.interim || 'Listening… try "2 lbs chicken and a dozen eggs"')
-          : 'Find an item to add… e.g. 2 lbs apples'}
+          : (isMobile ? 'Add an item… e.g. 2 lbs apples' : 'Find an item to add… e.g. 2 lbs apples')}
         value={listening ? voice.interim : text}
         onChange={e => { if (!listening) { setText(e.target.value); setOpen(true); } }}
         onFocus={() => setOpen(true)}

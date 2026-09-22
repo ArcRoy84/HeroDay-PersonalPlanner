@@ -6,6 +6,7 @@ import {
 } from '../utils/helpers.js';
 import MiniCalendar from './MiniCalendar.jsx';
 import StickyNotes from './StickyNotes.jsx';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const TOTAL_HOURS = TIMELINE_END - TIMELINE_START; // 18
 
@@ -96,6 +97,7 @@ function TaskCard({
   task, category, status, layout,
   isDragging, previewMinutes, previewDuration,
   onToggle, onEdit, onDelete, onMouseDown, onResizeMouseDown,
+  onTap, // phones: tapping the card opens it (there is no hover to reveal its buttons)
 }) {
   const startMin = isDragging && previewMinutes != null
     ? previewMinutes : timeToMinutes(task.startTime);
@@ -124,6 +126,7 @@ function TaskCard({
         '--stat-color': color,
       }}
       onMouseDown={onMouseDown}
+      onClick={onTap}
     >
       {/* Left accent bar = category color */}
       <div className="tl-card-accent" />
@@ -277,6 +280,7 @@ export default function TimelineView({
 }) {
   const scrollRef   = useRef(null);
   const cardsRef    = useRef(null);
+  const isMobile     = useIsMobile();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const [dragState,    setDragState]    = useState(null);
@@ -477,6 +481,7 @@ export default function TimelineView({
                   previewDuration={resizePrev[task.id]}
                   onToggle={() => onToggle(task.id)}
                   onEdit={() => onEdit(task)}
+                  onTap={isMobile ? () => onEdit(task) : undefined}
                   onDelete={() => onDelete(task.id)}
                   onMouseDown={e => handleTaskMouseDown(e, task)}
                   onResizeMouseDown={e => handleResizeMouseDown(e, task)}

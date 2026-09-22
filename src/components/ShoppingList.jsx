@@ -1,10 +1,11 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useShoppingPrefs } from '../hooks/useShoppingPrefs';
 import { categorize } from '../data/shoppingCategories.js';
 import ShoppingStoreMode from './ShoppingStoreMode.jsx';
 import BudgetView from './BudgetView.jsx';
 import {
-  IconPlus, IconShare, IconSparkle,
+  IconPlus, IconShare, IconSparkle, IconChevron,
   IconCalendar, IconNavigation, IconBarcode, NAV,
 } from './shopping/icons.jsx';
 import { parseWithCatalog, getSuggestions, daysSince } from './shopping/parsing.js';
@@ -32,6 +33,8 @@ import { toLocalDate, parseDateOnly } from '../utils/products';
 
 export default function ShoppingList({
   lists, history, recipes, setRecipes, onAddToPlanner,
+  // Optional: the parent owns which section shows (the phone menu jumps to one).
+  section, onSectionChange,
   // Item-level writes, one scoped call per user action — see db/shoppingOps.ts.
   addItemToList: addItemRow,
   updateItem: updateItemRow,
@@ -49,9 +52,26 @@ export default function ShoppingList({
   createProduct, updateProduct, removeProduct, addProductToList,
   logPastPurchase, confirmPurchase, updatePurchase, removePurchase,
 }) {
-  const [activeSection,  setActiveSection]  = useState('lists');
+  const [ownSection,     setOwnSection]     = useState('lists');
+  const activeSection = section ?? ownSection;
+  const setActiveSection = onSectionChange ?? setOwnSection;
+  const isMobile = useIsMobile();
+  // The phone section strip scrolls sideways; keep the current section in view.
+  useEffect(() => {
+    if (!isMobile) return;
+    document.querySelector('.shop-subnav-item--active')
+      ?.scrollIntoView?.({ inline: 'center', block: 'nearest' });
+  }, [isMobile, activeSection]);
   const [activeId,       setActiveId]       = useState(() => lists[0]?.id || null);
   const [storeMode,      setStoreMode]      = useState(false);
+  const [moreOpen,       setMoreOpen]       = useState(false); // phones: the list's less-used tools
+  // Store Mode is full-screen: let the stylesheet tuck the phone tab bar away.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (storeMode) root.setAttribute('data-store-mode', '');
+    else root.removeAttribute('data-store-mode');
+    return () => root.removeAttribute('data-store-mode');
+  }, [storeMode]);
   const [editingItem,    setEditingItem]    = useState(null);
   const [deletingItem,   setDeletingItem]   = useState(null);
   // Text that could not be placed on a catalog product ("Product not found"), and
@@ -423,15 +443,27 @@ export default function ShoppingList({
               </button>
             );
           })}
+          {isMobile && (
+            <button type="button" className="shop-list-chip shop-list-chip--new"
+              onClick={() => setShowNewList(true)} aria-label="New shopping list">
+              <IconPlus /> New
+            </button>
+          )}
         </div>
         <button className="shop-store-mode-btn" onClick={() => setStoreMode(true)}>
           <IconNavigation /><span>Store Mode</span>
         </button>
       </div>
-      <div className="shop-list-secondary-actions">
+      <div className={`shop-list-secondary-actions${isMobile ? ' shop-list-secondary-actions--m' : ''}${moreOpen ? ' is-open' : ''}`}>
         <button className="btn-ghost sm" onClick={() => setShowScan(true)} disabled={!activeList}>
           <IconBarcode /> Scan Item
         </button>
+        {isMobile && (
+          <button type="button" className="btn-ghost sm shop-more-btn"
+            aria-expanded={moreOpen} onClick={() => setMoreOpen(o => !o)}>
+            {moreOpen ? 'Less' : 'More'} <IconChevron up={moreOpen} />
+          </button>
+        )}
         <button className="btn-ghost sm" onClick={() => setShowCategories(true)}>Categories</button>
         <button className="btn-ghost sm" onClick={() => setShowUnits(true)}>Units</button>
         {activeList && (stores.length > 0 || activeList.storeId) && (
@@ -552,6 +584,20 @@ export default function ShoppingList({
 
       {/* ── CENTER PANEL ──────────────────────────────────────────────────── */}
       <div className="shop-center">
+        {/* Phones: the sections as a strip along the top (the left panel is hidden). */}
+        {isMobile && !storeMode && (
+          <nav className="shop-subnav" aria-label="Shopping sections">
+            {NAV.map(({ id, label, short, Icon }) => (
+              <button key={id} type="button"
+                className={`shop-subnav-item${activeSection === id ? ' shop-subnav-item--active' : ''}`}
+                aria-current={activeSection === id ? 'page' : undefined}
+                onClick={() => setActiveSection(id)}>
+                <Icon />
+                <span>{short ?? label}</span>
+              </button>
+            ))}
+          </nav>
+        )}
         {activeSection === 'lists' && storeMode && activeList
           ? <ShoppingStoreMode list={activeList} onToggle={toggleItem} onClose={() => setStoreMode(false)} categories={categories} />
           : activeSection === 'lists' && ListsCenterPanel()
@@ -784,23 +830,6 @@ export default function ShoppingList({
       )}
     </div>
 
-    {/* ── Mobile bottom navigation ─────────────────────────────────────── */}
-    {!storeMode && (
-      <nav className="shop-bottom-nav">
-        {NAV.map(({ id, label, Icon }) => (
-          <button key={id}
-            className={`shop-bnav-item ${activeSection === id ? 'shop-bnav-item--active' : ''}`}
-            onClick={() => setActiveSection(id)}>
-            <Icon />
-            <span className="shop-bnav-label">{label}</span>
-          </button>
-        ))}
-        <button className="shop-bnav-item shop-bnav-new" onClick={() => setShowNewList(true)}>
-          <IconPlus />
-          <span className="shop-bnav-label">New</span>
-        </button>
-      </nav>
-    )}
     </>
   );
 }

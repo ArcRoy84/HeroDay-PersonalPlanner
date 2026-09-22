@@ -33,7 +33,7 @@ const IconBook     = () => <svg width="26" height="26" viewBox="0 0 18 18" fill=
 const NAV = [
   { id: 'lists',   label: 'My List',          Icon: IconNavCart   },
   { id: 'recipes', label: 'Recipes',          Icon: IconNavBook   },
-  { id: 'budget',  label: 'Monthly Budget',   Icon: IconNavWallet },
+  { id: 'budget',  label: 'Monthly Budget',   Icon: IconNavWallet, short: 'Budget' },
   { id: 'items',   label: 'Items',            Icon: IconNavBox    },
   { id: 'stores',  label: 'Stores',           Icon: IconNavStore  },
 ];
