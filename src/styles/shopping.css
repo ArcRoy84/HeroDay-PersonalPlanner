@@ -1987,6 +1987,18 @@
   opacity: .4;
 }
 
+/* Checked, but a price still needs registering: the row is a plain div (not a
+   button -- the price form inside it needs real focusable controls), left at
+   full opacity so the open form doesn't look disabled. */
+.smode-item--row {
+  cursor: default;
+  align-items: flex-start;
+}
+.smode-item--row .smode-checkbox { margin-top: 1px; cursor: pointer; }
+.smode-item--row .sic-paid { margin-top: 6px; }
+.smode-item--row .sic-paid-label,
+.smode-item--row .sic-paid-same { font-size: 12.5px; }
+
 /* Large touch-friendly checkbox */
 .smode-checkbox {
   position: relative;
@@ -2109,6 +2121,18 @@
   font-size: 13px;
   color: var(--text-muted);
   margin: 0;
+}
+
+.smode-all-done-warn {
+  font-size: 12.5px;
+  color: var(--priority-medium);
+  background: color-mix(in srgb, var(--priority-medium) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--priority-medium) 30%, transparent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 2px 0 0;
+  max-width: 360px;
+  text-align: center;
 }
 
 /* Empty state */

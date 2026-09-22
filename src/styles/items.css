@@ -490,6 +490,22 @@
 .sic-paid-input { width: 84px; padding: 5px 8px; font-size: 13px; }
 .sic-paid-store { max-width: 150px; padding: 5px 8px; font-size: 12px; }
 
+/* "Same as last" — a one-tap way to fill the field with what was really paid
+   last time, when the pre-filled amount is only an estimate or a guess. */
+.sic-paid-same {
+  padding: 5px 10px;
+  border: 1px solid var(--border-med);
+  border-radius: 99px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sic-paid-same:hover:not(:disabled) { border-color: var(--accent); color: var(--text-primary); }
+.sic-paid-same:disabled { opacity: .5; cursor: default; }
+
 .sic-paid-ok {
   display: inline-flex;
   align-items: center;

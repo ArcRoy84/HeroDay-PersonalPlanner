@@ -11,6 +11,7 @@ import {
 import { parseWithCatalog, getSuggestions, daysSince } from './shopping/parsing.js';
 import { useVoice } from './shopping/useVoice.js';
 import { CategorySection } from './shopping/items.jsx';
+import { lastConfirmedUnitPrice, roundMoney } from '../analytics/price';
 import { EditItemModal } from './shopping/EditItemModal.jsx';
 import { ScanItemModal } from './shopping/ScanItemModal.jsx';
 import {
@@ -114,6 +115,33 @@ export default function ShoppingList({
     () => new Map(purchases.filter(p => p.itemId).map(p => [p.itemId, p])),
     [purchases],
   );
+
+  // The last price actually confirmed for each product, one unit price per
+  // product -- so "Same as last" offers what was really paid, not the estimate
+  // (or the last unconfirmed guess) the price field is pre-filled with.
+  const lastPriceByProduct = useMemo(() => {
+    const byProduct = new Map();
+    for (const purchase of purchases) {
+      if (!purchase.productId) continue;
+      const list = byProduct.get(purchase.productId);
+      if (list) list.push(purchase); else byProduct.set(purchase.productId, [purchase]);
+    }
+    const out = new Map();
+    for (const [productId, history] of byProduct) {
+      const unitPrice = lastConfirmedUnitPrice(history);
+      if (unitPrice !== null) out.set(productId, unitPrice);
+    }
+    return out;
+  }, [purchases]);
+
+  // Same last unit price, scaled to one item's quantity -- what "Same as last"
+  // actually fills in, and what Store Mode shows beside the price field.
+  const lastPriceForItem = useCallback((item) => {
+    if (!item.productId) return undefined;
+    const unitPrice = lastPriceByProduct.get(item.productId);
+    if (unitPrice === undefined) return undefined;
+    return roundMoney(unitPrice * (item.qty > 0 ? item.qty : 1));
+  }, [lastPriceByProduct]);
 
   // Only worked out while the Items section is open. It is given today's date as
   // "now", so it is recomputed when the day changes and "3 days ago" cannot go
@@ -542,7 +570,8 @@ export default function ShoppingList({
         ) : (
           grouped.map(({ cat, items }) => (
             <CategorySection key={cat.id} cat={cat} items={items}
-              purchaseByItem={purchaseByItem} stores={stores} onConfirmPrice={confirmPurchase}
+              purchaseByItem={purchaseByItem} stores={stores} lastPriceForItem={lastPriceForItem}
+              onConfirmPrice={confirmPurchase}
               onToggle={toggleItem}
               onUpdate={updateItem}
               onEdit={item => setEditingItem(item)}
@@ -599,7 +628,9 @@ export default function ShoppingList({
           </nav>
         )}
         {activeSection === 'lists' && storeMode && activeList
-          ? <ShoppingStoreMode list={activeList} onToggle={toggleItem} onClose={() => setStoreMode(false)} categories={categories} />
+          ? <ShoppingStoreMode list={activeList} onToggle={toggleItem} onClose={() => setStoreMode(false)} categories={categories}
+              purchaseByItem={purchaseByItem} stores={stores} onConfirmPrice={confirmPurchase}
+              lastPriceForItem={lastPriceForItem} />
           : activeSection === 'lists' && ListsCenterPanel()
         }
         {activeSection === 'recipes' && (
