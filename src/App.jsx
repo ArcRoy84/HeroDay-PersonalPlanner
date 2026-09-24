@@ -10,9 +10,11 @@ import LearningPlan from './components/LearningPlan.jsx';
 import ShoppingList from './components/ShoppingList.jsx';
 import FAB from './components/FAB.jsx';
 import { MobileTabBar, WaffleMenu } from './components/MobileNav.jsx';
+import Login from './components/Login.jsx';
 import { getToday, navigateDate } from './utils/helpers.js';
 import { newId } from './db/ids';
 import { useDatabaseReady } from './hooks/useDatabaseReady';
+import { useAuth } from './hooks/useAuth';
 import { useTasks, useCategories } from './hooks/useTasks';
 import { useLearning } from './hooks/useLearning';
 import { useShopping } from './hooks/useShopping';
@@ -47,16 +49,25 @@ function BootScreen({ error }) {
 }
 
 export default function App() {
+  // Auth gates the app before the database gate does: a signed-out visitor
+  // should never reach the Dexie boot sequence, just the login screen.
+  const { status: authStatus, session, sendMagicLink, signOut } = useAuth();
+  if (authStatus === 'loading') return <BootScreen />;
+  if (authStatus === 'signed-out') return <Login sendMagicLink={sendMagicLink} />;
+  return <AuthedApp session={session} signOut={signOut} />;
+}
+
+function AuthedApp({ session, signOut }) {
   const { status, error } = useDatabaseReady();
   if (status !== 'ready') return <BootScreen error={error} />;
   // The app proper is a separate component so its hooks only ever mount
   // against an open, migrated database and never defend against a half-ready
   // one. Returning early here would break the rules of hooks if they shared
   // a component.
-  return <HeroDay />;
+  return <HeroDay session={session} signOut={signOut} />;
 }
 
-function HeroDay() {
+function HeroDay({ session, signOut }) {
   const [currentDate, setCurrentDate] = useState(getToday());
 
   // ── Persisted state ────────────────────────────────────────────────────────
@@ -72,6 +83,8 @@ function HeroDay() {
   const [streak, setStreak] = useSetting('streak', NO_STREAK);
   const [weatherLocation, setWeatherLocation] = useSetting('weatherLocation', null);
   const [weatherUnit, setWeatherUnit] = useSetting('weatherUnit', 'fahrenheit');
+  const [profileName, setProfileName] = useSetting('profileName', '');
+  const [profilePhoto, setProfilePhoto] = useSetting('profilePhoto', null);
 
   // ── Modal state ────────────────────────────────────────────────────────────
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -231,6 +244,9 @@ function HeroDay() {
         currentDate={currentDate} setCurrentDate={setCurrentDate}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenMenu={isMobile ? () => setIsMenuOpen(true) : undefined}
+        profileName={profileName} setProfileName={setProfileName}
+        profilePhoto={profilePhoto} setProfilePhoto={setProfilePhoto}
+        email={session.user.email} onSignOut={signOut}
       />
 
       <div className="app-body">
@@ -328,6 +344,9 @@ function HeroDay() {
           setShopSection={setShopSection}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onClose={() => setIsMenuOpen(false)}
+          profileName={profileName} setProfileName={setProfileName}
+          profilePhoto={profilePhoto} setProfilePhoto={setProfilePhoto}
+          email={session.user.email} onSignOut={signOut}
         />
       )}
 

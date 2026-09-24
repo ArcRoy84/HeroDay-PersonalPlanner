@@ -1,0 +1,98 @@
+/* Login screen — the invite-only magic-link sign-in gate.
+   Deliberately on its own brand palette, sampled from the HeroDay shield
+   logo (public/heroday-logo.png), not the app's --accent/dark theme tokens:
+   this renders before the user's theme setting (Dexie, post-auth) is known,
+   and an auth gate reads better brand-first than matching an arbitrary
+   pre-login theme. */
+
+.login-page {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px;
+  background: linear-gradient(180deg, #f5f8ef 0%, #eaf1e0 100%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 22rem;
+  padding: 36px 32px 32px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(22, 31, 44, 0.04), 0 16px 40px rgba(22, 31, 44, 0.10);
+  text-align: center;
+}
+
+.login-logo {
+  width: min(180px, 55vw);
+  height: auto;
+  margin: 0 auto 8px;
+  display: block;
+}
+
+.login-heading {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #161f2c;
+}
+
+.login-copy {
+  margin: 0 0 18px;
+  color: #5a6472;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.login-copy strong { color: #161f2c; }
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.login-input {
+  padding: 11px 14px;
+  background: #f7f8f5;
+  border: 1px solid rgba(22, 31, 44, 0.12);
+  border-radius: 10px;
+  color: #161f2c;
+  font-size: 14px;
+  text-align: center;
+}
+.login-input::placeholder { color: #9aa3ad; }
+.login-input:focus {
+  outline: none;
+  border-color: #6b9e2e;
+  box-shadow: 0 0 0 3px rgba(107, 158, 46, 0.18);
+  background: #ffffff;
+}
+
+.login-submit {
+  padding: 11px 16px;
+  background: #6b9e2e;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.login-submit:hover:not(:disabled) { background: #5c8a27; }
+.login-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.login-error {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: #c0392b;
+}
+
+.login-back {
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #6b9e2e;
+  text-decoration: underline;
+}
+.login-back:hover { color: #5c8a27; }

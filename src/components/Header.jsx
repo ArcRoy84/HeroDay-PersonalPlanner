@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatDate, navigateDate, getToday } from '../utils/helpers.js';
+import ProfileMenu from './ProfileMenu.jsx';
 
 const IconChecklist = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -77,8 +78,11 @@ export const VIEWS = [
 ];
 
 // `onOpenMenu` is passed on phones only: it adds the waffle button that opens the
-// full menu (the tab bar and settings gear take over from the nav shown here).
-export default function Header({ view, setView, currentDate, setCurrentDate, onOpenSettings, onOpenMenu }) {
+// full menu (the tab bar, profile and settings take over from the nav shown here).
+export default function Header({
+  view, setView, currentDate, setCurrentDate, onOpenSettings, onOpenMenu,
+  profileName, setProfileName, profilePhoto, setProfilePhoto, email, onSignOut,
+}) {
   const isToday   = currentDate === getToday();
   const dateLabel = isToday ? 'Today' : formatDate(currentDate);
 
@@ -147,13 +151,17 @@ export default function Header({ view, setView, currentDate, setCurrentDate, onO
           </button>
         </div>
 
-        <button
-          className="settings-btn"
-          onClick={onOpenSettings}
-          title="Settings"
-        >
-          <IconGear />
-        </button>
+        <div className="header-divider" />
+
+        <ProfileMenu
+          name={profileName}
+          setName={setProfileName}
+          photo={profilePhoto}
+          setPhoto={setProfilePhoto}
+          onOpenSettings={onOpenSettings}
+          email={email}
+          onSignOut={onSignOut}
+        />
 
         {onOpenMenu && (
           <button

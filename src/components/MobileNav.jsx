@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { VIEWS, IconGear } from './Header.jsx';
 import { NAV } from './shopping/icons.jsx';
+import { ProfileEditor, AccountRow } from './ProfileCard.jsx';
 
 /** The five areas, always one thumb-tap away at the bottom of the screen. */
 export function MobileTabBar({ view, setView }) {
@@ -28,7 +29,10 @@ export function MobileTabBar({ view, setView }) {
  * Every destination in one place, grouped: the planner areas, the shopping
  * sections (which jump straight to that section), and the app itself.
  */
-export function WaffleMenu({ view, setView, shopSection, setShopSection, onOpenSettings, onClose }) {
+export function WaffleMenu({
+  view, setView, shopSection, setShopSection, onOpenSettings, onClose,
+  profileName, setProfileName, profilePhoto, setProfilePhoto, email, onSignOut,
+}) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -46,6 +50,16 @@ export function WaffleMenu({ view, setView, shopSection, setShopSection, onOpenS
         aria-label="All sections"
         onClick={e => e.stopPropagation()}
       >
+        <section className="m-waffle-profile">
+          <AccountRow email={email} onSignOut={onSignOut} />
+          <ProfileEditor
+            name={profileName}
+            setName={setProfileName}
+            photo={profilePhoto}
+            setPhoto={setProfilePhoto}
+          />
+        </section>
+
         <section className="m-waffle-group">
           <h2 className="m-waffle-heading">Planner</h2>
           <div className="m-waffle-grid">

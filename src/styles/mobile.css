@@ -19,7 +19,7 @@
   .header-brand { margin-right: 0; flex: 1; min-width: 0; }
   .header-brand .brand-name { display: block; font-size: 16px; }
   .brand-tagline { display: none; }
-  .header-nav, .settings-btn { display: none; }
+  .header-nav, .header-divider, .profile-trigger { display: none; }
   .header-controls { gap: 2px; }
   .date-nav-btn { width: 44px; height: 44px; }
   .date-label { font-size: 14px; padding: 0 6px; min-height: 44px; min-width: 56px; }
@@ -79,6 +79,11 @@
     border-bottom: 1px solid var(--border);
     border-radius: 0 0 16px 16px;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  }
+  .m-waffle-profile {
+    padding: 10px 2px 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
   }
   .m-waffle-heading {
     margin: 12px 2px 8px;

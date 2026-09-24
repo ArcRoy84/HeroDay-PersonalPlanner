@@ -412,6 +412,10 @@ export interface SettingsMap {
   weatherUnit: TemperatureUnit;
   shoppingUnits: string[];
   budgetSettings: BudgetSettings;
+  /** Local display identity, shown in the header — not an account yet. */
+  profileName: string;
+  /** Data URL, resized like a store logo. Null shows the initials fallback. */
+  profilePhoto: string | null;
 }
 
 export type SettingKey = keyof SettingsMap;
